@@ -16,6 +16,7 @@ uint32_t stepcompress_get_oid(struct stepcompress *sc);
 int stepcompress_get_step_dir(struct stepcompress *sc);
 int stepcompress_append(struct stepcompress *sc, int sdir
                         , double print_time, double step_time);
+int stepcompress_commit(struct stepcompress *sc);
 
 struct serialqueue;
 struct steppersync *steppersync_alloc(
