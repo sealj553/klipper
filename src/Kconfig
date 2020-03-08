@@ -11,6 +11,8 @@ config LOW_LEVEL_OPTIONS
 
 choice
     prompt "Micro-controller Architecture"
+    config MACH_TEENSY
+        bool "PJRC Teensy 4.0"
     config MACH_AVR
         bool "Atmega AVR"
     config MACH_ATSAM
@@ -29,6 +31,7 @@ choice
         bool "Host simulator"
 endchoice
 
+source "src/teensy/Kconfig"
 source "src/avr/Kconfig"
 source "src/atsam/Kconfig"
 source "src/atsamd/Kconfig"
