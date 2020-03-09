@@ -1,106 +1,101 @@
-// Serial Peripheral Interface (SPI) support
+// SPI support on lpc176x
 //
-// Copyright (C) 2016-2018  Kevin O'Connor <kevin@koconnor.net>
+// Copyright (C) 2018  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
-#include "autoconf.h" // CONFIG_MACH_atmega644p
 #include "command.h" // shutdown
 #include "gpio.h" // spi_setup
-#include "internal.h" // GPIO
-#include "pgm.h" // READP
+#include "internal.h" // gpio_peripheral
 #include "sched.h" // sched_shutdown
 
-DECL_ENUMERATION("spi_bus", "spi", 0);
+struct spi_info {
+    LPC_SSP_TypeDef *spi;
+    uint8_t miso_pin, mosi_pin, sck_pin, pclk;
+};
 
-#if CONFIG_MACH_atmega168 || CONFIG_MACH_atmega328 || CONFIG_MACH_atmega328p
-static const uint8_t MISO = GPIO('B', 4), MOSI = GPIO('B', 3);
-static const uint8_t SCK = GPIO('B', 5), SS = GPIO('B', 2);
-DECL_CONSTANT_STR("BUS_PINS_spi", "PB4,PB3,PB5");
-#elif CONFIG_MACH_atmega644p || CONFIG_MACH_atmega1284p
-static const uint8_t MISO = GPIO('B', 6), MOSI = GPIO('B', 5);
-static const uint8_t SCK = GPIO('B', 7), SS = GPIO('B', 4);
-DECL_CONSTANT_STR("BUS_PINS_spi", "PB6,PB5,PB7");
-#elif CONFIG_MACH_at90usb1286 || CONFIG_MACH_at90usb646 \
-      || CONFIG_MACH_atmega32u4 || CONFIG_MACH_atmega1280 \
-      || CONFIG_MACH_atmega2560
-static const uint8_t MISO = GPIO('B', 3), MOSI = GPIO('B', 2);
-static const uint8_t SCK = GPIO('B', 1), SS = GPIO('B', 0);
-DECL_CONSTANT_STR("BUS_PINS_spi", "PB3,PB2,PB1");
-#endif
+DECL_ENUMERATION("spi_bus", "ssp0", 0);
+DECL_CONSTANT_STR("BUS_PINS_ssp0", "P0.17,P0.18,P0.15");
+DECL_ENUMERATION("spi_bus", "ssp1", 1);
+DECL_CONSTANT_STR("BUS_PINS_ssp1", "P0.8,P0.9,P0.7");
+
+static const struct spi_info spi_bus[] = {
+    { LPC_SSP0, GPIO(0, 17), GPIO(0, 18), GPIO(0, 15), PCLK_SSP0 },
+    { LPC_SSP1, GPIO(0, 8), GPIO(0, 9), GPIO(0, 7), PCLK_SSP1 },
+};
 
 static void
-spi_init(void)
+spi_init(uint32_t bus)
 {
-    if (!(GPIO2REGS(SS)->mode & GPIO2BIT(SS)))
-        // The SS pin must be an output pin (but is otherwise unused)
-        gpio_out_setup(SS, 0);
-    gpio_out_setup(SCK, 0);
-    gpio_out_setup(MOSI, 0);
-    gpio_in_setup(MISO, 0);
+    static int have_run_init[ARRAY_SIZE(spi_bus)];
+    if (have_run_init[bus])
+        return;
+    have_run_init[bus] = 1;
 
-    SPCR = (1<<MSTR) | (1<<SPE);
-    SPSR = 0;
+    // Configure MISO0, MOSI0, SCK0 pins
+    gpio_peripheral(spi_bus[bus].miso_pin, 2, 0);
+    gpio_peripheral(spi_bus[bus].mosi_pin, 2, 0);
+    gpio_peripheral(spi_bus[bus].sck_pin, 2, 0);
+
+    // Setup clock
+    enable_pclock(spi_bus[bus].pclk);
+
+    // Set initial registers
+    LPC_SSP_TypeDef *spi = spi_bus[bus].spi;
+    spi->CR0 = 0x07;
+    spi->CPSR = 254;
+    spi->CR1 = 1<<1;
 }
 
 struct spi_config
 spi_setup(uint32_t bus, uint8_t mode, uint32_t rate)
 {
-    if (bus)
+    if (bus >= ARRAY_SIZE(spi_bus))
         shutdown("Invalid spi_setup parameters");
 
-    // Make sure the SPI interface is enabled
-    spi_init();
+    // Make sure bus is enabled
+    spi_init(bus);
 
-    // Setup rate
-    struct spi_config config = {0, 0};
-    if (rate >= (CONFIG_CLOCK_FREQ / 2)) {
-        config.spsr = (1<<SPI2X);
-    } else if (rate >= (CONFIG_CLOCK_FREQ / 4)) {
-        config.spcr = 0;
-    } else if (rate >= (CONFIG_CLOCK_FREQ / 8)) {
-        config.spcr = 1;
-        config.spsr = (1<<SPI2X);
-    } else if (rate >= (CONFIG_CLOCK_FREQ / 16)) {
-        config.spcr = 1;
-    } else if (rate >= (CONFIG_CLOCK_FREQ / 32)) {
-        config.spcr = 2;
-        config.spsr = (1<<SPI2X);
-    } else if (rate >= (CONFIG_CLOCK_FREQ / 64)) {
-        config.spcr = 2;
-    } else {
-        config.spcr = 3;
-    }
+    // Setup clock rate and mode
+    struct spi_config res = {spi_bus[bus].spi, 0, 0};
+    uint32_t pclk = SystemCoreClock;
+    uint32_t div = DIV_ROUND_UP(pclk/2, rate) << 1;
+    res.cpsr = div < 2 ? 2 : (div > 254 ? 254 : div);
+    res.cr0 = 0x07 | (mode << 6);
 
-    // Setup mode
-    config.spcr |= (1<<SPE) | (1<<MSTR) | (mode << CPHA);
-
-    return config;
+    return res;
 }
 
 void
 spi_prepare(struct spi_config config)
 {
-    SPCR = config.spcr;
-    SPSR = config.spsr;
+    LPC_SSP_TypeDef *spi = config.spi;
+    spi->CR0 = config.cr0;
+    spi->CPSR = config.cpsr;
 }
 
 void
 spi_transfer(struct spi_config config, uint8_t receive_data
              , uint8_t len, uint8_t *data)
 {
+    LPC_SSP_TypeDef *spi = config.spi;
     if (receive_data) {
         while (len--) {
-            SPDR = *data;
-            while (!(SPSR & (1<<SPIF)))
+            spi->DR = *data;
+            // wait for read data to be ready
+            while (!(spi->SR & (1<<2)))
                 ;
-            *data++ = SPDR;
+            // get data
+            *data++ = spi->DR;
         }
     } else {
         while (len--) {
-            SPDR = *data++;
-            while (!(SPSR & (1<<SPIF)))
+            spi->DR = *data++;
+            // wait for read data to be ready
+            while (!(spi->SR & (1<<2)))
                 ;
+            // read data (to clear receive fifo)
+            spi->DR;
         }
     }
 }

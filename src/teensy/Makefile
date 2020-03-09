@@ -1,35 +1,38 @@
-# Additional avr build rules
+# Teensy build rules
 
-# Use the avr toolchain
-CROSS_PREFIX=avr-
+# Setup the toolchain
+CROSS_PREFIX=arm-none-eabi-
 
-dirs-y += src/avr src/generic
+DIR=teensy
 
-CFLAGS += -mmcu=$(CONFIG_MCU)
+dirs-y += src/$DIR src/generic lib/$DIR/device
 
-# Add avr source files
-src-y += avr/main.c avr/timer.c
-src-$(CONFIG_HAVE_GPIO) += avr/gpio.c
-src-$(CONFIG_HAVE_GPIO_ADC) += avr/adc.c
-src-$(CONFIG_HAVE_GPIO_SPI) += avr/spi.c
-src-$(CONFIG_HAVE_GPIO_I2C) += avr/i2c.c
-src-$(CONFIG_HAVE_GPIO_HARD_PWM) += avr/hard_pwm.c
-src-$(CONFIG_AVR_WATCHDOG) += avr/watchdog.c
-src-$(CONFIG_USBSERIAL) += avr/usbserial.c generic/usb_cdc.c
-src-$(CONFIG_SERIAL) += avr/serial.c generic/serial_irq.c
+CFLAGS += -mthumb -mcpu=cortex-m3 -Ilib/$DIR/device -Ilib/cmsis-core
 
-# Suppress broken "misspelled signal handler" warnings on gcc 4.8.1
-CFLAGS_klipper.elf := $(CFLAGS_klipper.elf) $(if $(filter 4.8.1, $(shell $(CC) -dumpversion)), -w)
+CFLAGS_klipper.elf += --specs=nano.specs --specs=nosys.specs
+CFLAGS_klipper.elf += -T $(OUT)src/generic/armcm_link.ld
+$(OUT)klipper.elf: $(OUT)src/generic/armcm_link.ld
 
-# Build the additional hex output file
-target-y += $(OUT)klipper.elf.hex
+# Add source files
+src-y += $DIR/main.c $DIR/gpio.c
+src-y += generic/armcm_boot.c generic/armcm_irq.c generic/armcm_timer.c
+src-y += generic/armcm_reset.c generic/crc16_ccitt.c
+src-y += ../lib/$DIR/device/system_LPC17xx.c
+src-$(CONFIG_HAVE_GPIO_ADC) += $DIR/adc.c
+src-$(CONFIG_HAVE_GPIO_I2C) += $DIR/i2c.c
+src-$(CONFIG_HAVE_GPIO_SPI) += $DIR/spi.c
+src-$(CONFIG_USBSERIAL) += $DIR/usbserial.c $DIR/chipid.c
+src-$(CONFIG_USBSERIAL) += generic/usb_cdc.c
+src-$(CONFIG_SERIAL) += $DIR/serial.c generic/serial_irq.c
 
-$(OUT)klipper.elf.hex: $(OUT)klipper.elf
-	@echo "  Creating hex file $@"
-	$(Q)$(OBJCOPY) -j .text -j .data -O ihex $< $@
+# Build the additional bin output file
+target-y += $(OUT)klipper.bin
 
-flash: $(OUT)klipper.elf.hex
-	@echo "  pretending to flash mcu "
-	#@echo "  Flashing $< to $(FLASH_DEVICE) via avrdude"
-	#$(Q)if [ -z $(FLASH_DEVICE) ]; then echo "Please specify FLASH_DEVICE"; exit 1; fi
-	#$(Q)avrdude -p$(CONFIG_MCU) -c$(CONFIG_AVRDUDE_PROTOCOL) -P"$(FLASH_DEVICE)" -D -U"flash:w:$(<):i"
+$(OUT)klipper.bin: $(OUT)klipper.elf
+	@echo "  Creating bin file $@"
+	$(Q)$(OBJCOPY) -O binary $< $@
+
+# Flash rules
+flash: $(OUT)klipper.bin
+	@echo "  Flashing $< to $(FLASH_DEVICE)"
+	$(Q)$(PYTHON) ./scripts/flash_usb.py -t $(CONFIG_MCU) -d "$(FLASH_DEVICE)" $(if $(NOSUDO),--no-sudo) $(OUT)klipper.bin

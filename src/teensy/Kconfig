@@ -1,117 +1,66 @@
-# Kconfig settings for TEENSY processors
+# Kconfig settings for LPC176x processors
 
 if MACH_TEENSY
 
-config TEENSY_SELECT
+config LPC_SELECT
     bool
     default y
     select HAVE_GPIO
     select HAVE_GPIO_ADC
-    select HAVE_GPIO_SPI
     select HAVE_GPIO_I2C
-    select HAVE_GPIO_HARD_PWM
-    select HAVE_GPIO_BITBANGING if !MACH_atmega168
-
-config STEP_DELAY
-    default -1
+    select HAVE_GPIO_SPI
+    select HAVE_GPIO_BITBANGING
+    select HAVE_CHIPID
 
 config BOARD_DIRECTORY
     string
-    default "TEENSY"
+    default "teensy40"
 
 choice
     prompt "Processor model"
-    config MACH_teensy40
-        bool "teensy40"
+    config MACH_TEENSY40
+        bool "Teensy 4.0 (600 Mhz)"
 endchoice
 
 config MCU
     string
-    default "teensy40" if MACH_teensy40
-
-choice
-    prompt "Processor speed" if LOW_LEVEL_OPTIONS
-    config TEENSY_FREQ_16000000
-        bool "16Mhz"
-    config TEENSY_FREQ_20000000
-        bool "20Mhz"
-        depends on MACH_atmega168 || MACH_atmega328 || MACH_atmega328p || MACH_atmega644p || MACH_atmega1284p
-    config TEENSY_FREQ_8000000
-        bool "8Mhz"
-endchoice
+    default "teensy40" if MACH_TEENSY40
 
 config CLOCK_FREQ
     int
-    default 8000000 if TEENSY_FREQ_8000000
-    default 20000000 if TEENSY_FREQ_20000000
-    default 16000000
+    default 600000000 if MACH_TEENSY40
 
-config CLEAR_PRESCALER
-    bool "Manually clear the CPU prescaler field at startup" if LOW_LEVEL_OPTIONS
-    depends on MACH_at90usb1286 || MACH_at90usb646 || MACH_atmega32u4
-    default y
-    help
-         Some TEENSY chips ship with a "clock prescaler" that causes the
-         chip to run at 1/8th speed. Enable this setting to clear the
-         prescaler field at startup which will cause the chip to run
-         without a clock divisor.
+config FLASH_SIZE
+    hex
+    default 0x80000
 
-config TEENSY_CLKPR
+config RAM_START
+    hex
+    default 0x10000000
+
+config RAM_SIZE
+    hex
+    default 0x7fe0 # (0x8000 - 32) - top 32 bytes used by IAP functions
+
+config STACK_SIZE
     int
-    default 0 if CLEAR_PRESCALER
-    default -1
+    default 512
 
-config TEENSY_STACK_SIZE
-    int
-    default 256
+#config SMOOTHIEWARE_BOOTLOADER
+#    bool "Target board uses Smoothieware bootloader"
+#    default y
 
-config TEENSY_WATCHDOG
-    bool
-    default y
-config USBSERIAL
-    bool "Use USB for communication (instead of serial)"
-    depends on MACH_at90usb1286 || MACH_at90usb646 || MACH_atmega32u4
-    default y
+config FLASH_START
+    hex
+    #default 0x4000 if SMOOTHIEWARE_BOOTLOADER
+    default 0x0000
+
+#config USBSERIAL
+#    bool "Use USB for communication (instead of serial)"
+#    default y
 config SERIAL
-    depends on !USBSERIAL
+    #depends on !USBSERIAL
     bool
     default y
-choice
-    depends on SERIAL
-    prompt "Serial Port" if LOW_LEVEL_OPTIONS && (MACH_atmega2560 || MACH_atmega1280 || MACH_atmega644p || MACH_atmega1284p)
-    help
-        Select the serial device to use on the TEENSY chip. This is
-        almost always UART0.
-    config TEENSY_SERIAL_UART0
-        bool "UART0"
-    config TEENSY_SERIAL_UART1
-        bool "UART1"
-    config TEENSY_SERIAL_UART2
-        bool "UART2" if MACH_atmega2560 || MACH_atmega1280
-    config TEENSY_SERIAL_UART3
-        bool "UART3" if MACH_atmega2560 || MACH_atmega1280
-endchoice
-config SERIAL_BAUD_U2X
-    depends on SERIAL && !SIMULTEENSY
-    bool
-    default y
-
-config SERIAL_PORT
-    int
-    default 3 if TEENSY_SERIAL_UART3
-    default 2 if TEENSY_SERIAL_UART2
-    default 1 if MACH_at90usb1286 || MACH_at90usb646 || MACH_atmega32u4 || TEENSY_SERIAL_UART1
-    default 0
-
-config SIMULTEENSY
-    depends on MACH_atmega168 || MACH_atmega328 || MACH_atmega328p || MACH_atmega644p || MACH_atmega1284p
-    bool "Compile for simulTEENSY software emulation" if LOW_LEVEL_OPTIONS
-    default n
-    help
-         Compile the code to run on simulTEENSY software emulation
-         instead of for real hardware. This disables support for "U2X
-         baud" mode which is not supported on simulTEENSY.
-
-         If unsure, select "N".
 
 endif

@@ -12,7 +12,7 @@ config LOW_LEVEL_OPTIONS
 choice
     prompt "Micro-controller Architecture"
     config MACH_TEENSY
-        bool "PJRC Teensy 4.0"
+        bool "PJRC Teensy"
     config MACH_AVR
         bool "Atmega AVR"
     config MACH_ATSAM

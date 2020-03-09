@@ -1,72 +1,66 @@
-// Main starting point for AVR boards.
+// Main starting point for LPC176x boards.
 //
-// Copyright (C) 2016,2017  Kevin O'Connor <kevin@koconnor.net>
+// Copyright (C) 2018  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
-#include <avr/io.h> // AVR_STACK_POINTER_REG
-#include <util/crc16.h> // _crc_ccitt_update
-#include "autoconf.h" // CONFIG_MCU
-#include "board/misc.h" // dynmem_start
-#include "command.h" // DECL_CONSTANT
-#include "irq.h" // irq_enable
+#include "board/armcm_boot.h" // armcm_main
+#include "internal.h" // enable_pclock
 #include "sched.h" // sched_main
 
-DECL_CONSTANT_STR("MCU", CONFIG_MCU);
-
 
 /****************************************************************
- * Dynamic memory
+ * watchdog handler
  ****************************************************************/
 
-// Return the start of memory available for dynamic allocations
-void *
-dynmem_start(void)
-{
-    extern char _end;
-    return &_end;
-}
-
-// Return the end of memory available for dynamic allocations
-void *
-dynmem_end(void)
-{
-    return (void*)ALIGN(AVR_STACK_POINTER_REG, 256) - CONFIG_AVR_STACK_SIZE;
-}
-
-
-/****************************************************************
- * Misc functions
- ****************************************************************/
-
-// Initialize the clock prescaler (if necessary)
 void
-prescaler_init(void)
+watchdog_reset(void)
 {
-    if (CONFIG_AVR_CLKPR != -1 && (uint8_t)CONFIG_AVR_CLKPR != CLKPR) {
-        irqstatus_t flag = irq_save();
-        CLKPR = 0x80;
-        CLKPR = CONFIG_AVR_CLKPR;
-        irq_restore(flag);
+    LPC_WDT->WDFEED = 0xaa;
+    LPC_WDT->WDFEED = 0x55;
+}
+DECL_TASK(watchdog_reset);
+
+void
+watchdog_init(void)
+{
+    LPC_WDT->WDTC = 4000000 / 2; // 500ms timeout
+    LPC_WDT->WDCLKSEL = 1<<31; // Lock to internal RC
+    LPC_WDT->WDMOD = 0x03; // select reset and enable
+    watchdog_reset();
+}
+DECL_INIT(watchdog_init);
+
+
+/****************************************************************
+ * misc functions
+ ****************************************************************/
+
+// Check if a peripheral clock has been enabled
+int
+is_enabled_pclock(uint32_t pclk)
+{
+    return !!(LPC_SC->PCONP & (1<<pclk));
+}
+
+// Enable a peripheral clock
+void
+enable_pclock(uint32_t pclk)
+{
+    LPC_SC->PCONP |= 1<<pclk;
+    if (pclk < 16) {
+        uint32_t shift = pclk * 2;
+        LPC_SC->PCLKSEL0 = (LPC_SC->PCLKSEL0 & ~(0x3<<shift)) | (0x1<<shift);
+    } else {
+        uint32_t shift = (pclk - 16) * 2;
+        LPC_SC->PCLKSEL1 = (LPC_SC->PCLKSEL1 & ~(0x3<<shift)) | (0x1<<shift);
     }
 }
-DECL_INIT(prescaler_init);
 
-// Optimized crc16_ccitt for the avr processor
-uint16_t
-crc16_ccitt(uint8_t *buf, uint_fast8_t len)
+// Main entry point - called from armcm_boot.c:ResetHandler()
+void
+armcm_main(void)
 {
-    uint16_t crc = 0xFFFF;
-    while (len--)
-        crc = _crc_ccitt_update(crc, *buf++);
-    return crc;
-}
-
-// Main entry point for avr code.
-int
-main(void)
-{
-    irq_enable();
+    SystemInit();
     sched_main();
-    return 0;
 }

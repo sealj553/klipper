@@ -1,260 +1,331 @@
-// Hardware interface to USB on AVR at90usb
+// Hardware interface to USB on lpc176x
 //
 // Copyright (C) 2018  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
-#include <avr/interrupt.h> // USB_COM_vect
-#include <string.h> // NULL
-#include "autoconf.h" // CONFIG_MACH_at90usb1286
-#include "board/usb_cdc.h" // usb_notify_ep0
-#include "board/usb_cdc_ep.h" // USB_CDC_EP_BULK_IN
-#include "pgm.h" // READP
+#include <string.h> // memcpy
+#include "autoconf.h" // CONFIG_SMOOTHIEWARE_BOOTLOADER
+#include "board/armcm_boot.h" // armcm_enable_irq
+#include "board/armcm_timer.h" // udelay
+#include "board/irq.h" // irq_disable
+#include "board/misc.h" // timer_read_time
+#include "byteorder.h" // cpu_to_le32
+#include "command.h" // DECL_CONSTANT_STR
+#include "generic/usb_cdc.h" // usb_notify_ep0
+#include "internal.h" // gpio_peripheral
 #include "sched.h" // DECL_INIT
+#include "usb_cdc_ep.h" // USB_CDC_EP_BULK_IN
 
-// EPCFG0X definitions
-#define EP_TYPE_CONTROL      0x00
-#define EP_TYPE_BULK_IN      0x81
-#define EP_TYPE_BULK_OUT     0x80
-#define EP_TYPE_INTERRUPT_IN 0xC1
+// Internal endpoint addresses
+#define EP0OUT 0x00
+#define EP0IN 0x01
+#define EP1IN 0x03
+#define EP2OUT 0x04
+#define EP5IN 0x0b
 
-// EPCFG1X definitions
-#define EP_SINGLE_BUFFER 0x02
-#define EP_DOUBLE_BUFFER 0x06
-#define EP_SIZE(s) ((s)==64 ? 0x30 : ((s)==32 ? 0x20 : ((s)==16 ? 0x10 : 0x00)))
+// USB device interupt status flags
+#define EP_SLOW (1<<2)
+#define DEV_STAT (1<<3)
+#define CCEMPTY (1<<4)
+#define CDFULL (1<<5)
+#define EP_RLZED (1<<8)
+
+#define RD_EN (1<<0)
+#define WR_EN (1<<1)
 
 static void
-usb_write_packet(const uint8_t *data, uint8_t len)
+usb_irq_disable(void)
 {
-    while (len--)
-        UEDATX = *data++;
+    NVIC_DisableIRQ(USB_IRQn);
 }
 
 static void
-usb_write_packet_progmem(const uint8_t *data, uint8_t len)
+usb_irq_enable(void)
 {
-    while (len--)
-        UEDATX = READP(*data++);
+    NVIC_EnableIRQ(USB_IRQn);
 }
 
 static void
-usb_read_packet(uint8_t *data, uint8_t len)
+usb_wait(uint32_t flag)
 {
-    while (len--)
-        *data++ = UEDATX;
+    while (!(LPC_USB->USBDevIntSt & flag))
+        ;
+    LPC_USB->USBDevIntClr = flag;
+}
+
+
+/****************************************************************
+ * Serial Interface Engine (SIE) functions
+ ****************************************************************/
+
+#define SIE_CMD_SELECT 0x00
+#define SIE_CMD_SET_ENDPOINT_STATUS 0x40
+#define SIE_CMD_SET_ADDRESS 0xD0
+#define SIE_CMD_CONFIGURE 0xD8
+#define SIE_CMD_SET_DEVICE_STATUS 0xFE
+#define SIE_CMD_CLEAR_BUFFER 0xF2
+#define SIE_CMD_VALIDATE_BUFFER 0xFA
+
+static void
+sie_cmd(uint32_t cmd)
+{
+    LPC_USB->USBDevIntClr = CDFULL | CCEMPTY;
+    LPC_USB->USBCmdCode = 0x00000500 | (cmd << 16);
+    usb_wait(CCEMPTY);
+}
+
+static void
+sie_cmd_write(uint32_t cmd, uint32_t data)
+{
+    sie_cmd(cmd);
+    LPC_USB->USBCmdCode = 0x00000100 | (data << 16);
+    usb_wait(CCEMPTY);
+}
+
+static uint32_t
+sie_cmd_read(uint32_t cmd)
+{
+    sie_cmd(cmd);
+    LPC_USB->USBCmdCode = 0x00000200 | (cmd << 16);
+    usb_wait(CDFULL);
+    return LPC_USB->USBCmdData;
+}
+
+static uint32_t
+sie_select_and_clear(uint32_t idx)
+{
+    LPC_USB->USBEpIntClr = 1<<idx;
+    usb_wait(CDFULL);
+    return LPC_USB->USBCmdData;
+}
+
+
+/****************************************************************
+ * Interface
+ ****************************************************************/
+
+static int_fast8_t
+usb_write_packet(uint32_t ep, const void *data, uint_fast8_t len)
+{
+    usb_irq_disable();
+    uint32_t sts = sie_cmd_read(SIE_CMD_SELECT | ep);
+    if (sts & 0x01) {
+        // Output buffers full
+        usb_irq_enable();
+        return -1;
+    }
+
+    LPC_USB->USBCtrl = WR_EN | ((ep/2) << 2);
+    LPC_USB->USBTxPLen = len;
+    if (!len)
+        LPC_USB->USBTxData = 0;
+    int i;
+    for (i = 0; i<DIV_ROUND_UP(len, 4); i++) {
+        uint32_t d;
+        memcpy(&d, data, sizeof(d));
+        data += sizeof(d);
+        LPC_USB->USBTxData = cpu_to_le32(d);
+    }
+    sie_cmd(SIE_CMD_VALIDATE_BUFFER);
+    usb_irq_enable();
+
+    return len;
+}
+
+static int_fast8_t
+usb_read_packet(uint32_t ep, void *data, uint_fast8_t max_len)
+{
+    usb_irq_disable();
+    uint32_t sts = sie_cmd_read(SIE_CMD_SELECT | ep);
+    if (!(sts & 0x01)) {
+        // No data available
+        usb_irq_enable();
+        return -1;
+    }
+
+    // Determine packet size
+    LPC_USB->USBCtrl = RD_EN | ((ep/2) << 2);
+    uint32_t plen = LPC_USB->USBRxPLen;
+    while (!(plen & (1<<11)))
+        plen = LPC_USB->USBRxPLen;
+    plen &= 0x3FF;
+    if (plen > max_len)
+        // XXX - return error code?  must keep reading?
+        plen = max_len;
+    // Copy data
+    uint32_t xfer = plen;
+    for (;;) {
+        uint32_t d = le32_to_cpu(LPC_USB->USBRxData);
+        if (xfer <= sizeof(d)) {
+            memcpy(data, &d, xfer);
+            break;
+        }
+        memcpy(data, &d, sizeof(d));
+        data += sizeof(d);
+        xfer -= sizeof(d);
+    }
+    // Clear space for next packet
+    sts = sie_cmd_read(SIE_CMD_CLEAR_BUFFER);
+    usb_irq_enable();
+    if (sts & 0x01)
+        // Packet overwritten
+        return -1;
+
+    return plen;
 }
 
 int_fast8_t
 usb_read_bulk_out(void *data, uint_fast8_t max_len)
 {
-    UENUM = USB_CDC_EP_BULK_OUT;
-    if (!(UEINTX & (1<<RXOUTI))) {
-        // No data ready
-        UEIENX = 1<<RXOUTE;
-        return -1;
-    }
-    uint8_t len = UEBCLX;
-    usb_read_packet(data, len);
-    UEINTX = (uint8_t)~((1<<FIFOCON) | (1<<RXOUTI));
-    return len;
+    return usb_read_packet(EP2OUT, data, max_len);
 }
 
 int_fast8_t
 usb_send_bulk_in(void *data, uint_fast8_t len)
 {
-    UENUM = USB_CDC_EP_BULK_IN;
-    if (!(UEINTX & (1<<TXINI))) {
-        // Buffer full
-        UEIENX = 1<<TXINE;
-        return -1;
-    }
-    usb_write_packet(data, len);
-    UEINTX = (uint8_t)~((1<<FIFOCON) | (1<<TXINI) | (1<<RXOUTI));
-    return len;
+    return usb_write_packet(EP5IN, data, len);
 }
 
 int_fast8_t
 usb_read_ep0(void *data, uint_fast8_t max_len)
 {
-    UENUM = 0;
-    uint8_t ueintx = UEINTX;
-    if (ueintx & (1<<RXSTPI))
-        return -2;
-    if (!(ueintx & (1<<RXOUTI))) {
-        // Not ready to receive data
-        UEIENX = (1<<RXSTPE) | (1<<RXOUTE);
-        return -1;
-    }
-    usb_read_packet(data, max_len);
-    if (UEINTX & (1<<RXSTPI))
-        return -2;
-    UEINTX = ~(1<<RXOUTI);
-    return max_len;
+    return usb_read_packet(EP0OUT, data, max_len);
 }
 
 int_fast8_t
 usb_read_ep0_setup(void *data, uint_fast8_t max_len)
 {
-    UENUM = 0;
-    uint8_t ueintx = UEINTX;
-    if (!(ueintx & ((1<<RXSTPI)))) {
-        // No data ready to read
-        UEIENX = 1<<RXSTPE;
-        return -1;
-    }
-    usb_read_packet(data, max_len);
-    UEINTX = ~((1<<RXSTPI) | (1<<RXOUTI));
-    return max_len;
-}
-
-static int8_t
-_usb_send_ep0(const void *data, uint8_t len, uint8_t progmem)
-{
-    UENUM = 0;
-    uint8_t ueintx = UEINTX;
-    if (ueintx & ((1<<RXSTPI) | (1<<RXOUTI)))
-        return -2;
-    if (!(ueintx & (1<<TXINI))) {
-        // Not ready to send
-        UEIENX = (1<<RXSTPE) | (1<<RXOUTE) | (1<<TXINE);
-        return -1;
-    }
-    if (progmem)
-        usb_write_packet_progmem(data, len);
-    else
-        usb_write_packet(data, len);
-    UEINTX = ~(1<<TXINI);
-    return len;
+    return usb_read_ep0(data, max_len);
 }
 
 int_fast8_t
 usb_send_ep0(const void *data, uint_fast8_t len)
 {
-    return _usb_send_ep0(data, len, 0);
-}
-
-int_fast8_t
-usb_send_ep0_progmem(const void *data, uint_fast8_t len)
-{
-    return _usb_send_ep0(data, len, 1);
+    return usb_write_packet(EP0IN, data, len);
 }
 
 void
 usb_stall_ep0(void)
 {
-    UENUM = 0;
-    UECONX = (1<<STALLRQ) | (1<<EPEN);
-    UEIENX = 1<<RXSTPE;
+    usb_irq_disable();
+    sie_cmd_write(SIE_CMD_SET_ENDPOINT_STATUS | 0, (1<<7));
+    usb_irq_enable();
 }
-
-static uint8_t set_address;
 
 void
 usb_set_address(uint_fast8_t addr)
 {
-    set_address = addr | (1<<ADDEN);
-    _usb_send_ep0(NULL, 0, 0);
-    UEIENX = (1<<RXSTPE) | (1<<TXINE);
+    usb_irq_disable();
+    sie_cmd_write(SIE_CMD_SET_ADDRESS, addr | (1<<7));
+    usb_irq_enable();
+    usb_send_ep0(NULL, 0);
+}
+
+static void
+realize_endpoint(uint32_t idx, uint32_t packet_size)
+{
+    LPC_USB->USBDevIntClr = EP_RLZED;
+    LPC_USB->USBReEp |= 1<<idx;
+    LPC_USB->USBEpInd = idx;
+    LPC_USB->USBMaxPSize = packet_size;
+    usb_wait(EP_RLZED);
+    LPC_USB->USBEpIntEn |= 1<<idx;
+    sie_cmd_write(SIE_CMD_SET_ENDPOINT_STATUS | idx, 0);
 }
 
 void
 usb_set_configure(void)
 {
-    UENUM = USB_CDC_EP_ACM;
-    UECONX = 1<<EPEN;
-    UECFG0X = EP_TYPE_INTERRUPT_IN;
-    UECFG1X = EP_SIZE(USB_CDC_EP_ACM_SIZE) | EP_SINGLE_BUFFER;
-
-    UENUM = USB_CDC_EP_BULK_OUT;
-    UECONX = 1<<EPEN;
-    UECFG0X = EP_TYPE_BULK_OUT;
-    UECFG1X = EP_SIZE(USB_CDC_EP_BULK_OUT_SIZE) | EP_DOUBLE_BUFFER;
-    UEIENX = 1<<RXOUTE;
-
-    UENUM = USB_CDC_EP_BULK_IN;
-    UECONX = 1<<EPEN;
-    UECFG0X = EP_TYPE_BULK_IN;
-    UECFG1X = EP_SIZE(USB_CDC_EP_BULK_IN_SIZE) | EP_DOUBLE_BUFFER;
-    UEIENX = 1<<TXINE;
+    usb_irq_disable();
+    realize_endpoint(EP1IN, USB_CDC_EP_ACM_SIZE);
+    realize_endpoint(EP2OUT, USB_CDC_EP_BULK_OUT_SIZE);
+    realize_endpoint(EP5IN, USB_CDC_EP_BULK_IN_SIZE);
+    sie_cmd_write(SIE_CMD_CONFIGURE, 1);
+    usb_irq_enable();
 }
 
 void
 usb_request_bootloader(void)
 {
+    if (!CONFIG_SMOOTHIEWARE_BOOTLOADER)
+        return;
+    // Disable USB and pause for 5ms so host recognizes a disconnect
+    irq_disable();
+    sie_cmd_write(SIE_CMD_SET_DEVICE_STATUS, 0);
+    udelay(5000);
+    // The "LPC17xx-DFU-Bootloader" will enter the bootloader if the
+    // watchdog timeout flag is set.
+    LPC_WDT->WDMOD = 0x07;
+    NVIC_SystemReset();
 }
 
-#if CONFIG_MACH_at90usb1286
-#define UHWCON_Init ((1<<UIMOD) | (1<<UVREGE))
-#define PLLCSR_Init ((1<<PLLP2) | (1<<PLLP0) | (1<<PLLE))
-#elif CONFIG_MACH_at90usb646
-#define UHWCON_Init ((1<<UIMOD) | (1<<UVREGE))
-#define PLLCSR_Init ((1<<PLLP2) | (1<<PLLP1) | (1<<PLLE))
-#elif CONFIG_MACH_atmega32u4
-#define UHWCON_Init (1<<UVREGE)
-#define PLLCSR_Init ((1<<PINDIV) | (1<<PLLE))
-#endif
+
+/****************************************************************
+ * Setup and interrupts
+ ****************************************************************/
+
+void
+USB_IRQHandler(void)
+{
+    uint32_t udis = LPC_USB->USBDevIntSt;
+    if (udis & DEV_STAT) {
+        LPC_USB->USBDevIntClr = DEV_STAT;
+        // XXX - should handle reset and other states
+    }
+    if (udis & EP_SLOW) {
+        uint32_t ueis = LPC_USB->USBEpIntSt;
+        if (ueis & (1<<EP0OUT)) {
+            sie_select_and_clear(EP0OUT);
+            usb_notify_ep0();
+        }
+        if (ueis & (1<<EP0IN)) {
+            sie_select_and_clear(EP0IN);
+            usb_notify_ep0();
+        }
+        if (ueis & (1<<EP2OUT)) {
+            sie_select_and_clear(EP2OUT);
+            usb_notify_bulk_out();
+        }
+        if (ueis & (1<<EP5IN)) {
+            sie_select_and_clear(EP5IN);
+            usb_notify_bulk_in();
+        }
+        LPC_USB->USBDevIntClr = EP_SLOW;
+    }
+}
+
+DECL_CONSTANT_STR("RESERVE_PINS_USB", "P0.30,P0.29,P2.9");
 
 void
 usbserial_init(void)
 {
-    // Set USB controller to device mode
-    UHWCON = UHWCON_Init;
-
-    // Enable USB clock
-    USBCON = (1<<USBE) | (1<<FRZCLK);
-    PLLCSR = PLLCSR_Init;
-    while (!(PLLCSR & (1<<PLOCK)))
+    usb_irq_disable();
+    // enable power
+    enable_pclock(PCLK_USB);
+    // enable clock
+    LPC_USB->USBClkCtrl = 0x12;
+    while (LPC_USB->USBClkSt != 0x12)
         ;
-    USBCON = (1<<USBE) | (1<<OTGPADE);
-
-    // Enable USB pullup
-    UDCON = 0;
-
-    // Enable interrupts
-    UDIEN = 1<<EORSTE;
+    // configure USBD-, USBD+, and USB Connect pins
+    gpio_peripheral(GPIO(0, 30), 1, 0);
+    gpio_peripheral(GPIO(0, 29), 1, 0);
+    gpio_peripheral(GPIO(2, 9), 1, 0);
+    // enforce a minimum time bus is disconnected before connecting
+    udelay(5000);
+    // setup endpoints
+    realize_endpoint(EP0OUT, USB_CDC_EP0_SIZE);
+    realize_endpoint(EP0IN, USB_CDC_EP0_SIZE);
+    sie_cmd_write(SIE_CMD_SET_DEVICE_STATUS, 1);
+    // enable irqs
+    LPC_USB->USBDevIntEn = DEV_STAT | EP_SLOW;
+    armcm_enable_irq(USB_IRQHandler, USB_IRQn, 1);
 }
 DECL_INIT(usbserial_init);
 
-ISR(USB_GEN_vect)
+void
+usbserial_shutdown(void)
 {
-    uint8_t udint = UDINT;
-    UDINT = 0;
-    if (udint & (1<<EORSTI)) {
-        // Configure endpoint 0 after usb reset completes
-        uint8_t old_uenum = UENUM;
-        UENUM = 0;
-        UECONX = 1<<EPEN;
-        UECFG0X = EP_TYPE_CONTROL;
-        UECFG1X = EP_SIZE(USB_CDC_EP0_SIZE) | EP_SINGLE_BUFFER;
-        UEIENX = 1<<RXSTPE;
-        UENUM = old_uenum;
-    }
+    usb_irq_enable();
 }
-
-ISR(USB_COM_vect)
-{
-    uint8_t ueint = UEINT, old_uenum = UENUM;
-    if (ueint & (1<<0)) {
-        UENUM = 0;
-        UEIENX = 0;
-        usb_notify_ep0();
-
-        uint8_t ueintx = UEINTX;
-        if (!(ueintx & (1<<RXSTPI)) && (ueintx & (1<<TXINI)) && set_address) {
-            // Ack from set_address command sent - now update address
-            UDADDR = set_address;
-            set_address = 0;
-        }
-    }
-    if (ueint & (1<<USB_CDC_EP_BULK_OUT)) {
-        UENUM = USB_CDC_EP_BULK_OUT;
-        UEIENX = 0;
-        usb_notify_bulk_out();
-    }
-    if (ueint & (1<<USB_CDC_EP_BULK_IN)) {
-        UENUM = USB_CDC_EP_BULK_IN;
-        UEIENX = 0;
-        usb_notify_bulk_in();
-    }
-    UENUM = old_uenum;
-}
+DECL_SHUTDOWN(usbserial_shutdown);
