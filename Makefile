@@ -37,6 +37,11 @@ cc-option=$(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`" \
 #    -ffunction-sections -fdata-sections
 #CFLAGS += -flto -fwhole-program -fno-use-linker-plugin
 
+CFLAGS := -I$(OUT) -Isrc -I$(OUT)board-generic/ \
+    -Wold-style-definition $(call cc-option,$(CC),-Wtype-limits,) \
+    -ffunction-sections -fdata-sections
+CFLAGS += -flto -fwhole-program -fno-use-linker-plugin
+
 OBJS_klipper.elf = $(patsubst %.c, $(OUT)src/%.o,$(src-y))
 OBJS_klipper.elf += $(OUT)compile_time_request.o
 CFLAGS_klipper.elf = $(CFLAGS) -Wl,--gc-sections

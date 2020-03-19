@@ -3,7 +3,7 @@
 # Setup the toolchain
 CROSS_PREFIX=arm-none-eabi-
 
-DIR=teensy
+DIR=$(BOARD_DIRECTORY)
 CPU=MIMXRT1062
 
 LD_SCRIPT=../lib/$DIR/device/$CPU/MIMXRT1062xxxxx_flexspi_nor.ld
@@ -57,7 +57,9 @@ CFLAGS += -fdata-sections
 CFLAGS += -ffreestanding
 CFLAGS += -fno-builtin
 CFLAGS += -mapcs
-CFLAGS += -std=gnu99
+CFLAGS += -std=gnu11
+
+
 
 #SET(CMAKE_EXE_LINKER_FLAGS_FLEXSPI_NOR_RELEASE "${CMAKE_EXE_LINKER_FLAGS_FLEXSPI_NOR_RELEASE} -mcpu=cortex-m7")
 CFLAGS_klipper.elf += -mcpu=cortex-m7
@@ -106,7 +108,7 @@ CFLAGS += -I../lib/teensy/xip
 #"${ProjDirPath}/../gpio_led_output.c"
 
 #src-y += ../lib/$DIR/device/libbbbbbbb.c
-src-y += /../gpio_led_output.c
+#src-y += /../gpio_led_output.c
 src-y += /../pin_mux.c
 #src-y += /../pin_mux.h
 src-y += /../board.c

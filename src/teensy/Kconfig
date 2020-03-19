@@ -14,7 +14,7 @@ config TEENSY_SELECT
 
 config BOARD_DIRECTORY
     string
-    default "teensy40"
+    default "teensy"
 
 choice
     prompt "Processor model"
@@ -24,7 +24,7 @@ endchoice
 
 config MCU
     string
-    default "teensy40" if MACH_TEENSY40
+    default "teensy" if MACH_TEENSY40
 
 #config CLOCK_FREQ
 #    int
