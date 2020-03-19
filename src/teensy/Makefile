@@ -13,10 +13,18 @@
 #src-$(CONFIG_USBSERIAL) += generic/usb_cdc.c
 #src-$(CONFIG_SERIAL) += $BOARD_DIRECTORY/serial.c generic/serial_irq.c
 
+src-y += generic/serial_irq.c
+src-y += teensy/serial.c
+
+#src-y += generic/spi.c
+#src-y += teensy/spi.c
+
 src-y += teensy/main.c
+src-y += teensy/gpio.c
 src-y += teensy/pin_mux.c
 src-y += teensy/board.c
 src-y += teensy/clock_config.c
+
 src-y += ../lib/teensy/devices/MIMXRT1062/system_MIMXRT1062.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_gpio.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_clock.c
@@ -36,6 +44,7 @@ src-y += ../lib/teensy/components/lists/generic_list.c
 #dirs-y += src/$BOARD_DIRECTORY
 
 dirs-y += src/teensy/
+dirs-y += src/generic/
 dirs-y += lib/teensy/
 dirs-y += lib/teensy/devices/MIMXRT1062/
 dirs-y += lib/teensy/devices/MIMXRT1062/drivers/

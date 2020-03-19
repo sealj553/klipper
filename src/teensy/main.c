@@ -77,7 +77,7 @@
 #include "clock_config.h"
 
 #define EXAMPLE_LED_GPIO BOARD_USER_LED_GPIO
-#define EXAMPLE_LED_GPIO_PIN BOARD_USER_LED_GPIO_PIN
+#define EXAMPLE_LED_GPIO_PIN (25U)
 #define EXAMPLE_DELAY_COUNT 8000000
 
 void delay(void);
