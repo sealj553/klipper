@@ -15,7 +15,6 @@ CFLAGS_klipper.elf += -T $(LD_SCRIPT) -static
 $(OUT)klipper.elf: $(LD_SCRIPT)
 
 dirs-y += src/teensy/
-dirs-y += lib/CMSIS
 dirs-y += lib/teensy/
 dirs-y += lib/teensy/devices/MIMXRT1062/
 dirs-y += lib/teensy/devices/MIMXRT1062/drivers/
