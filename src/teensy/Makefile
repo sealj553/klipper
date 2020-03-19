@@ -13,6 +13,7 @@
 #src-$(CONFIG_USBSERIAL) += generic/usb_cdc.c
 #src-$(CONFIG_SERIAL) += $BOARD_DIRECTORY/serial.c generic/serial_irq.c
 
+src-y += teensy/main.c
 src-y += teensy/pin_mux.c
 src-y += teensy/board.c
 src-y += teensy/clock_config.c
@@ -66,6 +67,11 @@ dirs-y += lib/teensy/components/timer
 dirs-y += lib/teensy/components/timer_manager
 dirs-y += lib/teensy/components/uart
 dirs-y += lib/teensy/components/video
+
+CFLAGS = -I$(OUT) -Isrc -I$(OUT)board-generic/ \
+    -Wold-style-definition $(call cc-option,$(CC),-Wtype-limits,) \
+    -ffunction-sections -fdata-sections
+CFLAGS += -flto -fwhole-program -fno-use-linker-plugin
 
 CFLAGS += -DXIP_EXTERNAL_FLASH=1
 CFLAGS += -DXIP_BOOT_HEADER_ENABLE=1
