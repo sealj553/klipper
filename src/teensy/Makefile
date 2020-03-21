@@ -16,6 +16,8 @@
 src-y += generic/serial_irq.c
 src-y += teensy/serial.c
 
+#src-y += teensy/adc.c
+
 #src-y += generic/spi.c
 #src-y += teensy/spi.c
 
@@ -27,6 +29,7 @@ src-y += teensy/clock_config.c
 
 src-y += ../lib/teensy/devices/MIMXRT1062/system_MIMXRT1062.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_gpio.c
+src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_lpuart.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_clock.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_common.c
 src-y += ../lib/teensy/devices/MIMXRT1062/utilities/str/fsl_str.c
@@ -38,7 +41,9 @@ src-y += ../lib/teensy/xip/evkmimxrt1060_flexspi_nor_config.c
 src-y += ../lib/teensy/xip/evkmimxrt1060_sdram_ini_dcd.c
 src-y += ../lib/teensy/components/uart/lpuart_adapter.c
 src-y += ../lib/teensy/components/serial_manager/serial_manager.c
+src-y += ../lib/teensy/components/serial_manager/serial_port_uart.c
 src-y += ../lib/teensy/components/lists/generic_list.c
+#src-y += ../lib/teensy/devices/MIMXRT1062/gcc/startup_MIMXRT1062.S
 
 #dirs-y += src/$BOARD_DIRECTORY src/generic lib/$BOARD_DIRECTORY/device
 #dirs-y += src/$BOARD_DIRECTORY
@@ -47,6 +52,7 @@ dirs-y += src/teensy/
 dirs-y += src/generic/
 dirs-y += lib/teensy/
 dirs-y += lib/teensy/devices/MIMXRT1062/
+dirs-y += lib/teensy/devices/MIMXRT1062/gcc/
 dirs-y += lib/teensy/devices/MIMXRT1062/drivers/
 dirs-y += lib/teensy/devices/MIMXRT1062/utilities/
 dirs-y += lib/teensy/devices/MIMXRT1062/utilities/str
@@ -80,7 +86,8 @@ dirs-y += lib/teensy/components/video
 CFLAGS = -I$(OUT) -Isrc -I$(OUT)board-generic/ \
     -Wold-style-definition $(call cc-option,$(CC),-Wtype-limits,) \
     -ffunction-sections -fdata-sections
-CFLAGS += -flto -fwhole-program -fno-use-linker-plugin
+#CFLAGS += -flto -fwhole-program -fno-use-linker-plugin
+CFLAGS += -fno-use-linker-plugin
 
 CFLAGS += -DXIP_EXTERNAL_FLASH=1
 CFLAGS += -DXIP_BOOT_HEADER_ENABLE=1
@@ -106,8 +113,9 @@ CFLAGS += -std=gnu11
 CFLAGS += -Isrc/teensy
 CFLAGS += -Ilib/teensy/CMSIS/Include
 CFLAGS += -Ilib/teensy/devices
-CFLAGS += -Ilib/teensy/devices/MIMXRT1062/drivers
 CFLAGS += -Ilib/teensy/devices/MIMXRT1062
+CFLAGS += -Ilib/teensy/devices/MIMXRT1062/gcc
+CFLAGS += -Ilib/teensy/devices/MIMXRT1062/drivers
 CFLAGS += -Ilib/teensy/devices/MIMXRT1062/utilities
 CFLAGS += -Ilib/teensy/devices/MIMXRT1062/utilities/str
 CFLAGS += -Ilib/teensy/devices/MIMXRT1062/utilities/debug_console
@@ -141,6 +149,32 @@ CFLAGS_klipper.elf += muldefs
 CFLAGS_klipper.elf += -Xlinker
 CFLAGS_klipper.elf += -Map=output.map
 
+CFLAGS_ASM += -D__STARTUP_CLEAR_BSS
+CFLAGS_ASM += -DNDEBUG
+CFLAGS_ASM += -D__STARTUP_INITIALIZE_NONCACHEDATA
+#CFLAGS_ASM += -D__NO_SYSTEM_INIT
+CFLAGS_ASM += -mcpu=cortex-m7
+CFLAGS_ASM += -Wall
+CFLAGS_ASM += -mfloat-abi=hard
+CFLAGS_ASM += -mfpu=fpv5-d16
+CFLAGS_ASM += -mthumb
+CFLAGS_ASM += -fno-common
+CFLAGS_ASM += -ffunction-sections
+CFLAGS_ASM += -fdata-sections
+CFLAGS_ASM += -ffreestanding
+CFLAGS_ASM += -fno-builtin
+CFLAGS_ASM += -mapcs
+CFLAGS_ASM += -std=gnu11
+#CFLAGS_ASM += -Ilib/teensy/devices/MIMXRT1062/gcc/
+
+# Startup routine
+ASM_SRC = lib/teensy/devices/MIMXRT1062/gcc/startup_MIMXRT1062.S
+
+$(OUT)$(ASM_SRC).obj: $(ASM_SRC)
+	$(Q)$(CC) $(CFLAGS_ASM) $(ASM_SRC) -c -o $(OUT)$(ASM_SRC).obj
+
+OBJS_klipper.elf += $(OUT)$(ASM_SRC).obj
+
 # Setup the toolchain
 CROSS_PREFIX=arm-none-eabi-
 
@@ -150,14 +184,16 @@ LD_SCRIPT=lib/teensy/devices/MIMXRT1062/gcc/MIMXRT1062xxxxx_flexspi_nor.ld
 CFLAGS_klipper.elf += -T $(LD_SCRIPT) -static
 $(OUT)klipper.elf: $(LD_SCRIPT)
 
-# Build the additional bin output file
-target-y += $(OUT)klipper.bin
+# Build the additional hex output file
+target-y += $(OUT)klipper.hex
 
-$(OUT)klipper.bin: $(OUT)klipper.elf
-	@echo "  Creating bin file $@"
-	$(Q)$(OBJCOPY) -O ihex $< $@
+$(OUT)klipper.hex: $(OUT)klipper.elf
+	@echo "  Creating hex file $@"
+	$(Q)$(OBJCOPY) -O ihex -R .eeprom -R .fuse -R .lock -R .signature $< $@
+
+#$(Q)$(OBJCOPY) -O ihex $< $@
 
 # Flash rules
-flash: $(OUT)klipper.bin
+flash: $(OUT)klipper.hex
 	@echo "Flashing $< to $(FLASH_DEVICE)"
-	teensy_loader_cli --mcu=TEENSY40 -w $(OUT)klipper.bin
+	teensy_loader_cli -v -w --mcu=imxrt1062 $(OUT)klipper.hex
