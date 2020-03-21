@@ -86,8 +86,7 @@ dirs-y += lib/teensy/components/video
 CFLAGS = -I$(OUT) -Isrc -I$(OUT)board-generic/ \
     -Wold-style-definition $(call cc-option,$(CC),-Wtype-limits,) \
     -ffunction-sections -fdata-sections
-#CFLAGS += -flto -fwhole-program -fno-use-linker-plugin
-CFLAGS += -fno-use-linker-plugin
+CFLAGS += -flto -fwhole-program -fno-use-linker-plugin
 
 CFLAGS += -DXIP_EXTERNAL_FLASH=1
 CFLAGS += -DXIP_BOOT_HEADER_ENABLE=1
