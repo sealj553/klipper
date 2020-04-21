@@ -78,11 +78,16 @@ void BOARD_InitPins(void) {
 //                                                 Pull Up / Down Config. Field: 100K Ohm Pull Down
 //                                                 Hyst. Enable Field: Hysteresis Disabled */
 //
+
   IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_02_LPUART2_TX, 0);
   IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_03_LPUART2_RX, 0);
   IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_02_LPUART2_TX, 0x10B0);
   IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_03_LPUART2_RX, 0x10B0);
 
+  //IOMUXC_SetPinMux(IOMUXC_GPIO_EMC_13_LPUART3_TX , 0);
+  //IOMUXC_SetPinMux(IOMUXC_GPIO_EMC_14_LPUART3_RX, 0);
+  //IOMUXC_SetPinConfig(IOMUXC_GPIO_EMC_13_LPUART3_TX, 0x10B0);
+  //IOMUXC_SetPinConfig(IOMUXC_GPIO_EMC_14_LPUART3_RX, 0x10B0);
 
 }
 

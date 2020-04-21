@@ -29,6 +29,10 @@ config CLOCK_FREQ
     int
     default 600000000 if MACH_TEENSY
 
+config SERIAL_BAUD
+    int
+    default 115200
+
 #config FLASH_SIZE
 #    hex
 #    default 0x80000

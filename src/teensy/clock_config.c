@@ -157,6 +157,15 @@ const clock_usb_pll_config_t usb1PllConfig_BOARD_BootClockRUN = {
     .loopDivider = 0, /* PLL loop divider, Fout = Fin * 20 */
     .src         = 0, /* Bypass clock source, 0 - OSC 24M, 1 - CLK1_P and CLK1_N */
 };
+const clock_video_pll_config_t videoPllConfig_BOARD_BootClockRUN = {
+    .loopDivider = 31, /* PLL loop divider, Fout = Fin * ( loopDivider + numerator / denominator ) */
+    .postDivider = 8,  /* Divider after PLL */
+    .numerator =
+        0, /* 30 bit numerator of fractional loop divider, Fout = Fin * ( loopDivider + numerator / denominator ) */
+    .denominator =
+        1, /* 30 bit denominator of fractional loop divider, Fout = Fin * ( loopDivider + numerator / denominator ) */
+    .src = 0, /* Bypass clock source, 0 - OSC 24M, 1 - CLK1_P and CLK1_N */
+};
 /*******************************************************************************
  * Code for BOARD_BootClockRUN configuration
  ******************************************************************************/
@@ -409,14 +418,30 @@ void BOARD_BootClockRUN(void)
     CCM_ANALOG->MISC2 &= ~CCM_ANALOG_MISC2_AUDIO_DIV_MSB_MASK;
     /* Enable Audio PLL output. */
     CCM_ANALOG->PLL_AUDIO |= CCM_ANALOG_PLL_AUDIO_ENABLE_MASK;
-    /* DeInit Video PLL. */
-    CLOCK_DeinitVideoPll();
-    /* Bypass Video PLL. */
-    CCM_ANALOG->PLL_VIDEO |= CCM_ANALOG_PLL_VIDEO_BYPASS_MASK;
-    /* Set divider for Video PLL. */
-    CCM_ANALOG->MISC2 = (CCM_ANALOG->MISC2 & (~CCM_ANALOG_MISC2_VIDEO_DIV_MASK)) | CCM_ANALOG_MISC2_VIDEO_DIV(0);
-    /* Enable Video PLL output. */
-    CCM_ANALOG->PLL_VIDEO |= CCM_ANALOG_PLL_VIDEO_ENABLE_MASK;
+    ///* DeInit Video PLL. */
+    //CLOCK_DeinitVideoPll();
+
+
+    /* Init Video PLL. */
+    uint32_t pllVideo;
+    /* Disable Video PLL output before initial Video PLL. */
+    CCM_ANALOG->PLL_VIDEO &= ~CCM_ANALOG_PLL_VIDEO_ENABLE_MASK;
+    /* Bypass PLL first */
+    CCM_ANALOG->PLL_VIDEO = (CCM_ANALOG->PLL_VIDEO & (~CCM_ANALOG_PLL_VIDEO_BYPASS_CLK_SRC_MASK)) |
+                            CCM_ANALOG_PLL_VIDEO_BYPASS_MASK | CCM_ANALOG_PLL_VIDEO_BYPASS_CLK_SRC(0);
+    CCM_ANALOG->PLL_VIDEO_NUM   = CCM_ANALOG_PLL_VIDEO_NUM_A(0);
+    CCM_ANALOG->PLL_VIDEO_DENOM = CCM_ANALOG_PLL_VIDEO_DENOM_B(1);
+    pllVideo =
+        (CCM_ANALOG->PLL_VIDEO & (~(CCM_ANALOG_PLL_VIDEO_DIV_SELECT_MASK | CCM_ANALOG_PLL_VIDEO_POWERDOWN_MASK))) |
+        CCM_ANALOG_PLL_VIDEO_ENABLE_MASK | CCM_ANALOG_PLL_VIDEO_DIV_SELECT(31);
+    pllVideo |= CCM_ANALOG_PLL_VIDEO_POST_DIV_SELECT(1);
+    CCM_ANALOG->MISC2     = (CCM_ANALOG->MISC2 & (~CCM_ANALOG_MISC2_VIDEO_DIV_MASK)) | CCM_ANALOG_MISC2_VIDEO_DIV(3);
+    CCM_ANALOG->PLL_VIDEO = pllVideo;
+    while ((CCM_ANALOG->PLL_VIDEO & CCM_ANALOG_PLL_VIDEO_LOCK_MASK) == 0) { }
+    /* Disable bypass for Video PLL. */
+    CLOCK_SetPllBypass(CCM_ANALOG, kCLOCK_PllVideo, 0);
+
+
     /* DeInit Enet PLL. */
     CLOCK_DeinitEnetPll();
     /* Bypass Enet PLL. */
