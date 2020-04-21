@@ -72,56 +72,71 @@
 #include "board.h"
 #include "fsl_debug_console.h"
 #include "fsl_gpio.h"
+#include "fsl_lpuart.h"
+
+#undef ARRAY_SIZE
 
 #include "pin_mux.h"
 #include "clock_config.h"
+#include "sched.h"
 
-#define EXAMPLE_LED_GPIO (GPIO1)
-#define EXAMPLE_LED_GPIO_PIN (24)
-#define EXAMPLE_DELAY_COUNT 8000000
+//#define EXAMPLE_LED_GPIO (GPIO1)
+//#define EXAMPLE_LED_GPIO_PIN (24)
 
-void delay(void);
+#define LPUART_NUM LPUART2
+#define LPUART_CLK_FREQ BOARD_DebugConsoleSrcFreq()
 
-/* The PIN status */
-volatile bool g_pinSet = false;
 
-void delay(void){
-    volatile uint32_t i = 0;
-    for (i = 0; i < EXAMPLE_DELAY_COUNT; ++i){
-        __asm("NOP"); /* delay */
-    }
-}
-
-int main(void){
+void main(void){
 
     /* Define the init structure for the output LED pin*/
-    gpio_pin_config_t led_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    //gpio_pin_config_t led_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
 
     /* Board pin, clock, debug console init */
     BOARD_ConfigMPU();
     BOARD_InitPins();
     BOARD_BootClockRUN();
-    BOARD_InitDebugConsole();
+    //BOARD_InitDebugConsole();
 
-    /* Print a note to terminal. */
-    PRINTF("\r\n GPIO Driver example\r\n");
-    PRINTF("\r\n The LED is blinking.\r\n");
+    ///* Print a note to terminal. */
+    //PRINTF("\r\n GPIO Driver example\r\n");
+    //PRINTF("\r\n The LED is blinking.\r\n");
 
-    /* Init output LED GPIO. */
-    GPIO_PinInit(EXAMPLE_LED_GPIO, EXAMPLE_LED_GPIO_PIN, &led_config);
+    //GPIO_PinInit(EXAMPLE_LED_GPIO, EXAMPLE_LED_GPIO_PIN, &led_config);
 
-    while(1){
-        SDK_DelayAtLeastUs(100000, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
-#if (defined(FSL_FEATURE_IGPIO_HAS_DR_TOGGLE) && (FSL_FEATURE_IGPIO_HAS_DR_TOGGLE == 1))
-        GPIO_PortToggle(EXAMPLE_LED_GPIO, 1u << EXAMPLE_LED_GPIO_PIN);
-#else
-        if (g_pinSet){
-            GPIO_PinWrite(EXAMPLE_LED_GPIO, EXAMPLE_LED_GPIO_PIN, 0U);
-            g_pinSet = false;
-        } else {
-            GPIO_PinWrite(EXAMPLE_LED_GPIO, EXAMPLE_LED_GPIO_PIN, 1U);
-            g_pinSet = true;
-        }
-#endif /* FSL_FEATURE_IGPIO_HAS_DR_TOGGLE */
-    }
+    //while(1){
+    //    SDK_DelayAtLeastUs(400000, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
+    //    GPIO_PortToggle(EXAMPLE_LED_GPIO, 1 << EXAMPLE_LED_GPIO_PIN);
+    //}
+
+
+    /*
+     * config.baudRate_Bps = 115200U;
+     * config.parityMode = kLPUART_ParityDisabled;
+     * config.stopBitCount = kLPUART_OneStopBit;
+     * config.txFifoWatermark = 0;
+     * config.rxFifoWatermark = 0;
+     * config.enableTx = false;
+     * config.enableRx = false;
+     */
+    lpuart_config_t config;
+
+    LPUART_GetDefaultConfig(&config);
+    config.baudRate_Bps = 115200;
+    config.enableTx     = true;
+    config.enableRx     = true;
+
+    LPUART_Init(LPUART_NUM, &config, LPUART_CLK_FREQ);
+
+    uint8_t txbuff[]   = "\r\nmain\r\n";
+    LPUART_WriteBlocking(LPUART_NUM, txbuff, sizeof(txbuff) - 1);
+
+    SystemInit();
+    sched_main();
+
+    //while(1){
+    //    uint8_t ch;
+    //    LPUART_ReadBlocking(DEMO_LPUART, &ch, 1);
+    //    LPUART_WriteBlocking(DEMO_LPUART, &ch, 1);
+    //}
 }

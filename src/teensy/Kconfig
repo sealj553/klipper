@@ -25,10 +25,10 @@ config MCU
     string
     default "teensy" if MACH_TEENSY40
 
-#config CLOCK_FREQ
-#    int
-#    default 600000000 if MACH_TEENSY40
-#
+config CLOCK_FREQ
+    int
+    default 600000000 if MACH_TEENSY
+
 #config FLASH_SIZE
 #    hex
 #    default 0x80000

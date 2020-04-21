@@ -16,7 +16,7 @@
 src-y += generic/serial_irq.c
 src-y += teensy/serial.c
 
-#src-y += teensy/adc.c
+src-y += teensy/adc.c
 
 #src-y += generic/spi.c
 #src-y += teensy/spi.c
@@ -26,6 +26,17 @@ src-y += teensy/gpio.c
 src-y += teensy/pin_mux.c
 src-y += teensy/board.c
 src-y += teensy/clock_config.c
+src-y += teensy/irq.c
+src-y += teensy/timer.c
+
+src-y += command.c
+src-y += generic/alloc.c
+src-y += generic/crc16_ccitt.c
+src-y += generic/timer_irq.c
+
+##src-y += generic/armcm_timer.c
+
+#src-y += generic/armcm_boot.c generic/armcm_irq.c generic/armcm_timer.c generic/armcm_reset.c
 
 src-y += ../lib/teensy/devices/MIMXRT1062/system_MIMXRT1062.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_gpio.c
@@ -43,11 +54,16 @@ src-y += ../lib/teensy/components/uart/lpuart_adapter.c
 src-y += ../lib/teensy/components/serial_manager/serial_manager.c
 src-y += ../lib/teensy/components/serial_manager/serial_port_uart.c
 src-y += ../lib/teensy/components/lists/generic_list.c
-#src-y += ../lib/teensy/devices/MIMXRT1062/gcc/startup_MIMXRT1062.S
+
+#src-y += ../lib/teensy/teensyduino/usb_desc.c
+#src-y += ../lib/teensy/teensyduino/usb_serial.c
+#src-y += ../lib/teensy/teensyduino/usb_serial2.c
+#src-y += ../lib/teensy/teensyduino/usb_serial3.c
 
 #dirs-y += src/$BOARD_DIRECTORY src/generic lib/$BOARD_DIRECTORY/device
 #dirs-y += src/$BOARD_DIRECTORY
 
+dirs-y += src/
 dirs-y += src/teensy/
 dirs-y += src/generic/
 dirs-y += lib/teensy/
@@ -82,11 +98,12 @@ dirs-y += lib/teensy/components/timer
 dirs-y += lib/teensy/components/timer_manager
 dirs-y += lib/teensy/components/uart
 dirs-y += lib/teensy/components/video
+dirs-y += lib/teensy/teensyduino
 
 CFLAGS = -I$(OUT) -Isrc -I$(OUT)board-generic/ \
     -Wold-style-definition $(call cc-option,$(CC),-Wtype-limits,) \
     -ffunction-sections -fdata-sections
-CFLAGS += -flto -fwhole-program -fno-use-linker-plugin
+#CFLAGS += -flto -fwhole-program -fno-use-linker-plugin
 
 CFLAGS += -DXIP_EXTERNAL_FLASH=1
 CFLAGS += -DXIP_BOOT_HEADER_ENABLE=1
@@ -109,6 +126,7 @@ CFLAGS += -fno-builtin
 CFLAGS += -mapcs
 CFLAGS += -std=gnu11
 
+CFLAGS += -Isrc
 CFLAGS += -Isrc/teensy
 CFLAGS += -Ilib/teensy/CMSIS/Include
 CFLAGS += -Ilib/teensy/devices
@@ -123,6 +141,7 @@ CFLAGS += -Ilib/teensy/components/serial_manager
 CFLAGS += -Ilib/teensy/components/lists
 CFLAGS += -Ilib/teensy/devices/MIMXRT1062/xip
 CFLAGS += -Ilib/teensy/xip
+CFLAGS += -Ilib/teensy/teensyduino
 
 CFLAGS_klipper.elf += -mcpu=cortex-m7
 CFLAGS_klipper.elf += -Wall
@@ -188,9 +207,7 @@ target-y += $(OUT)klipper.hex
 
 $(OUT)klipper.hex: $(OUT)klipper.elf
 	@echo "  Creating hex file $@"
-	$(Q)$(OBJCOPY) -O ihex -R .eeprom -R .fuse -R .lock -R .signature $< $@
-
-#$(Q)$(OBJCOPY) -O ihex $< $@
+	$(Q)$(OBJCOPY) -O ihex $< $@
 
 # Flash rules
 flash: $(OUT)klipper.hex

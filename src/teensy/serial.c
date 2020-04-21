@@ -12,6 +12,10 @@
 #include "internal.h" // gpio_peripheral
 #include "sched.h" // DECL_INIT
 
+#include "fsl_iomuxc.h"
+#include "fsl_common.h"
+#include "pin_mux.h"
+
 // Write tx bytes to the serial port
 static void
 kick_tx(void)
@@ -58,6 +62,11 @@ DECL_CONSTANT_STR("RESERVE_PINS_serial", "P0.3,P0.2");
 void
 serial_init(void)
 {
+
+  IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_02_LPUART2_TX, 0);
+  IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_03_LPUART2_RX, 0);
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_02_LPUART2_TX, 0x10B0);
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_03_LPUART2_RX, 0x10B0);
     //// Setup baud
     //LPC_UART0->LCR = (1<<7); // set DLAB bit
     //enable_pclock(PCLK_UART0);

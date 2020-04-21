@@ -13,14 +13,14 @@
 #include "internal.h" // gpio_peripheral
 #include "sched.h" // sched_shutdown
 
-static const uint8_t adc_pins[] = {
-    GPIO(0, 23), GPIO(0, 24), GPIO(0, 25), GPIO(0, 26),
-    GPIO(1, 30), GPIO(1, 31), GPIO(0, 3), GPIO(0, 2),
-};
-
-static const uint8_t adc_pin_funcs[] = {
-    1, 1, 1, 1, 3, 3, 2, 2
-};
+////static const uint8_t adc_pins[] = {
+////    GPIO(0, 23), GPIO(0, 24), GPIO(0, 25), GPIO(0, 26),
+////    GPIO(1, 30), GPIO(1, 31), GPIO(0, 3), GPIO(0, 2),
+////};
+////
+////static const uint8_t adc_pin_funcs[] = {
+////    1, 1, 1, 1, 3, 3, 2, 2
+////};
 
 #define ADC_FREQ_MAX 13000000
 DECL_CONSTANT("ADC_MAX", 4095);
@@ -76,7 +76,8 @@ gpio_adc_setup(uint8_t pin)
 
     //gpio_peripheral(pin, adc_pin_funcs[chan], 0);
 
-    //return (struct gpio_adc){ .chan = chan };
+    ///return (struct gpio_adc){ .chan = chan };
+    return (struct gpio_adc){ .chan = 0 };
 }
 
 // Try to sample a value. Returns zero if sample ready, otherwise
@@ -104,7 +105,8 @@ gpio_adc_sample(struct gpio_adc g)
 
 //need_delay:
     //return ((64 * DIV_ROUND_UP(CONFIG_CLOCK_FREQ, ADC_FREQ_MAX)
-             * ARRAY_SIZE(adc_status.samples)) / 4 + timer_from_us(10));
+             //* ARRAY_SIZE(adc_status.samples)) / 4 + timer_from_us(10));
+    return 0;
 }
 
 #define ORDER(r1, r2) do {                                      \
@@ -137,6 +139,8 @@ gpio_adc_read(struct gpio_adc g)
     //}
     //// Return the median of the 5 samples
     //return v2;
+
+    return 0;
 }
 
 // Cancel a sample that may have been started with gpio_adc_sample()
