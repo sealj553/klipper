@@ -66,11 +66,8 @@ uint32_t
 timer_read_time(void)
 {
     //return TC4->COUNT32.COUNT.reg;
-
-    uint32_t base = overflows * TIMER_TOP;
-    uint16_t cur_cnt = QTMR_GetCurrentTimerCount(QTMR_BASEADDR, QTMR_CHANNEL);
-
-    return base + cur_cnt;
+    //return (overflows * TIMER_TOP) + QTMR_GetCurrentTimerCount(QTMR_BASEADDR, QTMR_CHANNEL);
+    return QTMR_GetCurrentTimerCount(QTMR_BASEADDR, QTMR_CHANNEL);
 }
 
 // Activate timer dispatch as soon as possible

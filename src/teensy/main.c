@@ -79,6 +79,8 @@
 #include "pin_mux.h"
 #include "clock_config.h"
 #include "sched.h"
+#include "command.h" // DECL_CONSTANT
+#include "autoconf.h"
 
 //#define EXAMPLE_LED_GPIO (GPIO1)
 //#define EXAMPLE_LED_GPIO_PIN (24)
@@ -122,6 +124,7 @@ void QTMR_IRQ_HANDLER(void){
     qtmrIsrFlag = true;
 }
 
+DECL_CONSTANT_STR("MCU", CONFIG_MCU);
 
 void main(void){
 

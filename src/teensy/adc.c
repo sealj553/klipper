@@ -27,12 +27,12 @@ DECL_CONSTANT("ADC_MAX", 4095);
 
 // The lpc176x adc is extremely noisy. Implement a 5 entry median
 // filter to weed out obviously incorrect readings.
-static struct {
-    uint32_t adcr;
-    uint16_t pos;
-    uint16_t chan;
-    uint16_t samples[5];
-} adc_status;
+//static struct {
+//    uint32_t adcr;
+//    uint16_t pos;
+//    uint16_t chan;
+//    uint16_t samples[5];
+//} adc_status;
 
 enum { ADC_DONE=0x0100 };
 
