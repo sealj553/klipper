@@ -27,11 +27,11 @@ config MCU
 
 config CLOCK_FREQ
     int
-    default 600000000 if MACH_TEENSY
+    default 1171875 if MACH_TEENSY
 
 config SERIAL_BAUD
     int
-    default 115200
+    default 460800
 
 #config FLASH_SIZE
 #    hex

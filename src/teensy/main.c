@@ -71,7 +71,7 @@
 
 #include "board.h"
 #include "fsl_debug_console.h"
-#include "fsl_gpio.h"
+//#include "fsl_gpio.h"
 #include "fsl_lpuart.h"
 
 #undef ARRAY_SIZE
@@ -80,69 +80,147 @@
 #include "clock_config.h"
 #include "sched.h"
 
-#define EXAMPLE_LED_GPIO (GPIO1)
-#define EXAMPLE_LED_GPIO_PIN (24)
+//#define EXAMPLE_LED_GPIO (GPIO1)
+//#define EXAMPLE_LED_GPIO_PIN (24)
 
-#define LPUART_NUM LPUART2
-#define LPUART_CLK_FREQ BOARD_DebugConsoleSrcFreq()
-
-#define DEMO_LPUART LPUART2
-#define DEMO_LPUART_CLK_FREQ BOARD_DebugConsoleSrcFreq()
-#define DEMO_LPUART_IRQn LPUART2_IRQn
-#define DEMO_LPUART_IRQHandler LPUART2_IRQHandler
-
-/*! @brief Ring buffer size (Unit: Byte). */
-#define DEMO_RING_BUFFER_SIZE 16
+#include "fsl_qtmr.h"
 
 
-uint8_t g_tipString[] =
-    "Lpuart functional API interrupt example\r\nBoard receives characters then sends them out\r\nNow please input:\r\n";
+#define QTMR_BASEADDR TMR3
+//#define BOARD_FIRST_QTMR_CHANNEL kQTMR_Channel_0
+#define QTMR_CHANNEL kQTMR_Channel_0
+#define QTMR_ClockCounterOutput kQTMR_ClockCounter0Output
 
-/*
-  Ring buffer for data input and output, in this example, input data are saved
-  to ring buffer in IRQ handler. The main function polls the ring buffer status,
-  if there are new data, then send them out.
-  Ring buffer full: (((rxIndex + 1) % DEMO_RING_BUFFER_SIZE) == txIndex)
-  Ring buffer empty: (rxIndex == txIndex)
-*/
-uint8_t demoRingBuffer[DEMO_RING_BUFFER_SIZE];
-volatile uint16_t txIndex; /* Index of the data to send out. */
-volatile uint16_t rxIndex; /* Index of the memory to save new arrived data. */
+/* Interrupt number and interrupt handler for the QTMR instance used */
+#define QTMR_IRQ_ID TMR3_IRQn
+#define QTMR_IRQ_HANDLER TMR3_IRQHandler
 
-void DEMO_LPUART_IRQHandler(void)
-{
-    uint8_t data;
-    uint16_t tmprxIndex = rxIndex;
-    uint16_t tmptxIndex = txIndex;
+/* Get source clock for QTMR driver */
+#define QTMR_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_IpgClk)
 
-    /* If new data arrived. */
-    if ((kLPUART_RxDataRegFullFlag)&LPUART_GetStatusFlags(DEMO_LPUART))
-    {
-        data = LPUART_ReadByte(DEMO_LPUART);
+#define QTMR_CLOCK_DIV  (128)
+#define QTMR_CLOCK_FREQ (QTMR_SOURCE_CLOCK / QTMR_CLOCK_DIV)
 
-        /* If ring buffer is not full, add data to ring buffer. */
-        if (((tmprxIndex + 1) % DEMO_RING_BUFFER_SIZE) != tmptxIndex)
-        {
-            demoRingBuffer[rxIndex] = data;
-            rxIndex++;
-            rxIndex %= DEMO_RING_BUFFER_SIZE;
-        }
-    }
+#define TIMER_TOP (65535)
+
+//150MHz / 128 -> 1171875 Hz = 1.1171875 Mhz
+
+
+volatile bool qtmrIsrFlag = false;
+
+uint32_t overflows = 0;
+
+void QTMR_IRQ_HANDLER(void){
+    //time += TIMER_TOP;
+    ++overflows;
+
+    //time = QTMR_GetCurrentTimerCount(QTMR_BASEADDR
+
+    /* Clear interrupt flag.*/
+    QTMR_ClearStatusFlags(QTMR_BASEADDR, QTMR_CHANNEL, kQTMR_CompareFlag);
+
+    qtmrIsrFlag = true;
 }
 
 
 void main(void){
 
-    /* Define the init structure for the output LED pin*/
-    gpio_pin_config_t led_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    //int i = 0;
+    //qtmr_config_t qtmrConfig;
+
+    ///* Board pin, clock, debug console init */
+    //BOARD_ConfigMPU();
+    //BOARD_InitPins();
+    //BOARD_BootClockRUN();
+    //BOARD_InitDebugConsole();
+
+    //PRINTF("\r\n\r\n*********QUADTIMER EXAMPLE START*********");
+
+    ///*
+    // * qtmrConfig.debugMode = kQTMR_RunNormalInDebug;
+    // * qtmrConfig.enableExternalForce = false;
+    // * qtmrConfig.enableMasterMode = false;
+    // * qtmrConfig.faultFilterCount = 0;
+    // * qtmrConfig.faultFilterPeriod = 0;
+    // * qtmrConfig.primarySource = kQTMR_ClockDivide_2;
+    // * qtmrConfig.secondarySource = kQTMR_Counter0InputPin;
+    // */
+    //QTMR_GetDefaultConfig(&qtmrConfig);
+    ///* Use IP bus clock div by 128*/
+    //qtmrConfig.primarySource = kQTMR_ClockDivide_128;
+
+
+    //char buf[32];
+
+    ////uint32_t num = COUNT_TO_USEC(10, QTMR_CLOCK_FREQ);
+    ////uint32_t num;
+    ////uint32_t num = QTMR_GetCurrentTimerCount(QTMR_BASEADDR, QTMR_CHANNEL);
+
+    //////uint32_t num = QTMR_CLOCK_FREQ;
+    //////uint32_t num = (QTMR_SOURCE_CLOCK/64) / 1000;
+
+    ////itoa(num, buf, 10);
+
+    //////QTMR_SetTimerPeriod(QTMR_BASEADDR, QTMR_CHANNEL, MSEC_TO_COUNT(50U, (QTMR_SOURCE_CLOCK / 128)));
+    ////PRINTF("\r\n");
+    ////PRINTF(buf);
+
+    //QTMR_Init(QTMR_BASEADDR, QTMR_CHANNEL, &qtmrConfig);
+    ///* Set timer period */
+    //QTMR_SetTimerPeriod(QTMR_BASEADDR, QTMR_CHANNEL, TIMER_TOP);
+    ///* Enable at the NVIC */
+    //EnableIRQ(QTMR_IRQ_ID);
+    ///* Enable timer compare interrupt */
+    //QTMR_EnableInterrupts(QTMR_BASEADDR, QTMR_CHANNEL, kQTMR_CompareInterruptEnable);
+    ///* Start the second channel to count on rising edge of the primary source clock */
+    //QTMR_StartTimer(QTMR_BASEADDR, QTMR_CHANNEL, kQTMR_PriSrcRiseEdge);
+
+    ////SDK_DelayAtLeastUs(100, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
+
+    //////
+    ////uint32_t num = QTMR_GetCurrentTimerCount(QTMR_BASEADDR, QTMR_CHANNEL);
+    ////num = COUNT_TO_USEC(num, QTMR_CLOCK_FREQ);
+    ////itoa(num, buf, 10);
+    ////PRINTF("\r\n");
+    ////PRINTF(buf);
+    //////
+
+    //PRINTF("\r\n****Timer Test****\n");
+
+    //for (i = 0; i < 10; i++) {
+    //    /* Check whether compare interrupt occurs */
+    //    while (!(qtmrIsrFlag)) {}
+    //    //PRINTF("\r\n interrupt");
+
+    //    itoa(overflows, buf, 10);
+    //    PRINTF("\r\n");
+    //    PRINTF(buf);
+
+    //    //num = QTMR_GetCurrentTimerCount(QTMR_BASEADDR, QTMR_CHANNEL);
+    //    //itoa(num, buf, 10);
+    //    //PRINTF("\r\n");
+    //    //PRINTF(buf);
+
+    //    //SDK_DelayAtLeastUs(5500, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
+
+    //    qtmrIsrFlag = false;
+    //}
+    ////QTMR_Deinit(QTMR_BASEADDR, QTMR_CHANNEL);
+
+    ////PRINTF("\r\n*********QUADTIMER EXAMPLE END.*********");
+
+    //while (1) {}
 
     /* Board pin, clock, debug console init */
-    SystemInit();
+    //SystemInit();
     BOARD_ConfigMPU();
     BOARD_InitPins();
     BOARD_BootClockRUN();
-    //BOARD_InitDebugConsole();
+
     sched_main();
+
+    /* Define the init structure for the output LED pin*/
+    //gpio_pin_config_t led_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
 
     ///* Print a note to terminal. */
     //PRINTF("\r\n GPIO Driver example\r\n");
@@ -156,75 +234,4 @@ void main(void){
     //}
 
 
-    /*
-     * config.baudRate_Bps = 115200U;
-     * config.parityMode = kLPUART_ParityDisabled;
-     * config.stopBitCount = kLPUART_OneStopBit;
-     * config.txFifoWatermark = 0;
-     * config.rxFifoWatermark = 0;
-     * config.enableTx = false;
-     * config.enableRx = false;
-     */
-    /////lpuart_config_t config;
-
-    /////LPUART_GetDefaultConfig(&config);
-    /////config.baudRate_Bps = 115200;
-    /////config.enableTx     = true;
-    /////config.enableRx     = true;
-
-    /////LPUART_Init(LPUART_NUM, &config, LPUART_CLK_FREQ);
-
-    /////uint8_t txbuff[]   = "\r\nmain\r\n";
-    /////LPUART_WriteBlocking(LPUART_NUM, txbuff, sizeof(txbuff) - 1);
-
-
-    //while(1){
-    //    uint8_t ch;
-    //    LPUART_ReadBlocking(DEMO_LPUART, &ch, 1);
-    //    LPUART_WriteBlocking(DEMO_LPUART, &ch, 1);
-    //}
-
-//    lpuart_config_t config;
-//    uint16_t tmprxIndex = rxIndex;
-//    uint16_t tmptxIndex = txIndex;
-//
-//    BOARD_ConfigMPU();
-//    BOARD_InitPins();
-//    BOARD_BootClockRUN();
-//
-//    /*
-//     * config.baudRate_Bps = 115200U;
-//     * config.parityMode = kLPUART_ParityDisabled;
-//     * config.stopBitCount = kLPUART_OneStopBit;
-//     * config.txFifoWatermark = 0;
-//     * config.rxFifoWatermark = 0;
-//     * config.enableTx = false;
-//     * config.enableRx = false;
-//     */
-//    LPUART_GetDefaultConfig(&config);
-//    //config.baudRate_Bps = BOARD_DEBUG_UART_BAUDRATE;
-//    config.enableTx     = true;
-//    config.enableRx     = true;
-//
-//    LPUART_Init(DEMO_LPUART, &config, DEMO_LPUART_CLK_FREQ);
-//
-//    /* Send g_tipString out. */
-//    LPUART_WriteBlocking(DEMO_LPUART, g_tipString, sizeof(g_tipString) / sizeof(g_tipString[0]));
-//
-//    /* Enable RX interrupt. */
-//    LPUART_EnableInterrupts(DEMO_LPUART, kLPUART_RxDataRegFullInterruptEnable);
-//    EnableIRQ(DEMO_LPUART_IRQn);
-//
-//    while (1) {
-//        /* Send data only when LPUART TX register is empty and ring buffer has data to send out. */
-//        while (kLPUART_TxDataRegEmptyFlag & LPUART_GetStatusFlags(DEMO_LPUART)) {
-//            tmprxIndex = rxIndex;
-//            tmptxIndex = txIndex;
-//            if (tmprxIndex != tmptxIndex) {
-//                LPUART_WriteByte(DEMO_LPUART, demoRingBuffer[txIndex]);
-//                txIndex++;
-//                txIndex %= DEMO_RING_BUFFER_SIZE;
-//            }
-//        }
-//    }
 }

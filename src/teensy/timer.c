@@ -11,23 +11,66 @@
 #include "internal.h" // enable_pclock
 #include "sched.h" // DECL_INIT
 
+//
+#include "board.h"
+
+#undef ARRAY_SIZE
+
+#include "pin_mux.h"
+#include "clock_config.h"
+#include "sched.h"
+//
+#include "fsl_qtmr.h"
+
+#define QTMR_BASEADDR TMR3
+//#define BOARD_FIRST_QTMR_CHANNEL kQTMR_Channel_0
+#define QTMR_CHANNEL kQTMR_Channel_0
+#define QTMR_ClockCounterOutput kQTMR_ClockCounter0Output
+
+/* Interrupt number and interrupt handler for the QTMR instance used */
+#define QTMR_IRQ_ID TMR3_IRQn
+#define QTMR_IRQ_HANDLER TMR3_IRQHandler
+
+/* Get source clock for QTMR driver */
+#define QTMR_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_IpgClk)
+
+#define QTMR_CLOCK_DIV  (128)
+#define QTMR_CLOCK_FREQ (QTMR_SOURCE_CLOCK / QTMR_CLOCK_DIV)
+//150MHz / 128 -> 1171875 Hz = 1.1171875 Mhz
+
+#define TIMER_TOP (65535)
+
+qtmr_config_t qtmrConfig;
+
+uint32_t overflows = 0;
+
+void QTMR_IRQ_HANDLER(void){
+    ++overflows;
+
+    /* Clear interrupt flag.*/
+    QTMR_ClearStatusFlags(QTMR_BASEADDR, QTMR_CHANNEL, kQTMR_CompareFlag);
+}
 
 //TODO: fix this file
 
 // Set the next irq time
-static void
-timer_set(uint32_t value)
-{
-    //TC4->COUNT32.CC[0].reg = value;
-    //TC4->COUNT32.INTFLAG.reg = TC_INTFLAG_MC0;
-}
+//static void
+//timer_set(uint32_t value)
+//{
+//    //TC4->COUNT32.CC[0].reg = value;
+//    //TC4->COUNT32.INTFLAG.reg = TC_INTFLAG_MC0;
+//}
 
 // Return the current time (in absolute clock ticks).
 uint32_t
 timer_read_time(void)
 {
     //return TC4->COUNT32.COUNT.reg;
-    return 0;
+
+    uint32_t base = overflows * TIMER_TOP;
+    uint16_t cur_cnt = QTMR_GetCurrentTimerCount(QTMR_BASEADDR, QTMR_CHANNEL);
+
+    return base + cur_cnt;
 }
 
 // Activate timer dispatch as soon as possible
@@ -38,18 +81,42 @@ timer_kick(void)
 }
 
 // IRQ handler
-void __aligned(16) // aligning helps stabilize perf benchmarks
-TC4_Handler(void)
-{
-    //irq_disable();
-    //uint32_t next = timer_dispatch_many();
-    //timer_set(next);
-    //irq_enable();
-}
+//void __aligned(16) // aligning helps stabilize perf benchmarks
+//TC4_Handler(void)
+//{
+//    //irq_disable();
+//    //uint32_t next = timer_dispatch_many();
+//    //timer_set(next);
+//    //irq_enable();
+//}
 
 void
 timer_init(void)
 {
+    /*
+     * qtmrConfig.debugMode = kQTMR_RunNormalInDebug;
+     * qtmrConfig.enableExternalForce = false;
+     * qtmrConfig.enableMasterMode = false;
+     * qtmrConfig.faultFilterCount = 0;
+     * qtmrConfig.faultFilterPeriod = 0;
+     * qtmrConfig.primarySource = kQTMR_ClockDivide_2;
+     * qtmrConfig.secondarySource = kQTMR_Counter0InputPin;
+     */
+    QTMR_GetDefaultConfig(&qtmrConfig);
+    /* Use IP bus clock div by 128*/
+    qtmrConfig.primarySource = kQTMR_ClockDivide_128;
+
+    QTMR_Init(QTMR_BASEADDR, QTMR_CHANNEL, &qtmrConfig);
+    /* Set timer period */
+    QTMR_SetTimerPeriod(QTMR_BASEADDR, QTMR_CHANNEL, TIMER_TOP);
+    /* Enable at the NVIC */
+    EnableIRQ(QTMR_IRQ_ID);
+    /* Enable timer compare interrupt */
+    QTMR_EnableInterrupts(QTMR_BASEADDR, QTMR_CHANNEL, kQTMR_CompareInterruptEnable);
+    /* Start the second channel to count on rising edge of the primary source clock */
+    QTMR_StartTimer(QTMR_BASEADDR, QTMR_CHANNEL, kQTMR_PriSrcRiseEdge);
+
+
     //// Supply power and clock to the timer
     //enable_pclock(TC3_GCLK_ID, ID_TC3);
     //enable_pclock(TC4_GCLK_ID, ID_TC4);

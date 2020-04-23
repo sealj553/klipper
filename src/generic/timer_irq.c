@@ -11,13 +11,18 @@
 #include "command.h" // shutdown
 #include "sched.h" // sched_timer_dispatch
 
+#include <fsl_qtmr.h>
+
 DECL_CONSTANT("CLOCK_FREQ", CONFIG_CLOCK_FREQ);
 
 // Return the number of clock ticks for a given number of microseconds
 uint32_t
 timer_from_us(uint32_t us)
 {
+    //TODO: fix this
     return us * (CONFIG_CLOCK_FREQ / 1000000);
+    ///USEC_TO_COUNT(us, CONFIG_CLOCK_FREQ);
+    //return USEC_TO_COUNT(us, 150000000U/128U);
 }
 
 // Return true if time1 is before time2.  Always use this function to

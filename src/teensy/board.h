@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -21,13 +21,13 @@
 
 /* The UART to use for debug messages. */
 #define BOARD_DEBUG_UART_TYPE kSerialPort_Uart
-#define BOARD_DEBUG_UART_BASEADDR (uint32_t) LPUART1
-#define BOARD_DEBUG_UART_INSTANCE 1U
+#define BOARD_DEBUG_UART_BASEADDR (uint32_t) LPUART2
+#define BOARD_DEBUG_UART_INSTANCE 2U
 
 #define BOARD_DEBUG_UART_CLK_FREQ BOARD_DebugConsoleSrcFreq()
 
 #define BOARD_UART_IRQ LPUART1_IRQn
-#define BOARD_UART_IRQ_HANDLER LPUART1_IRQHandler
+#define BOARD_UART_IRQ_HANDLER LPUART2_IRQHandler
 
 #ifndef BOARD_DEBUG_UART_BAUDRATE
 #define BOARD_DEBUG_UART_BAUDRATE (115200U)
@@ -40,7 +40,7 @@
 #define BOARD_USER_LED_GPIO GPIO1
 #endif
 #ifndef BOARD_USER_LED_GPIO_PIN
-#define BOARD_USER_LED_GPIO_PIN (25U)
+#define BOARD_USER_LED_GPIO_PIN (9U)
 #endif
 
 #define USER_LED_INIT(output)                                            \
@@ -93,7 +93,9 @@
 #define BOARD_USDHC_CD_GPIO_INIT()                                                          \
     {                                                                                       \
         gpio_pin_config_t sw_config = {                                                     \
-            kGPIO_DigitalInput, 0, kGPIO_IntRisingOrFallingEdge,                            \
+            kGPIO_DigitalInput,                                                             \
+            0,                                                                              \
+            kGPIO_IntRisingOrFallingEdge,                                                   \
         };                                                                                  \
         GPIO_PinInit(BOARD_USDHC_CD_GPIO_BASE, BOARD_USDHC_CD_GPIO_PIN, &sw_config);        \
         GPIO_PortEnableInterrupts(BOARD_USDHC_CD_GPIO_BASE, 1U << BOARD_USDHC_CD_GPIO_PIN); \
@@ -110,7 +112,9 @@
 #define BOARD_USDHC_MMCCARD_POWER_CONTROL_INIT()                                            \
     {                                                                                       \
         gpio_pin_config_t sw_config = {                                                     \
-            kGPIO_DigitalOutput, 0, kGPIO_NoIntmode,                                        \
+            kGPIO_DigitalOutput,                                                            \
+            0,                                                                              \
+            kGPIO_NoIntmode,                                                                \
         };                                                                                  \
         GPIO_PinInit(BOARD_SD_POWER_RESET_GPIO, BOARD_SD_POWER_RESET_GPIO_PIN, &sw_config); \
         GPIO_PinWrite(BOARD_SD_POWER_RESET_GPIO, BOARD_SD_POWER_RESET_GPIO_PIN, true);      \
@@ -119,7 +123,9 @@
 #define BOARD_USDHC_SDCARD_POWER_CONTROL_INIT()                                             \
     {                                                                                       \
         gpio_pin_config_t sw_config = {                                                     \
-            kGPIO_DigitalOutput, 0, kGPIO_NoIntmode,                                        \
+            kGPIO_DigitalOutput,                                                            \
+            0,                                                                              \
+            kGPIO_NoIntmode,                                                                \
         };                                                                                  \
         GPIO_PinInit(BOARD_SD_POWER_RESET_GPIO, BOARD_SD_POWER_RESET_GPIO_PIN, &sw_config); \
     }
@@ -127,8 +133,8 @@
 #define BOARD_USDHC_SDCARD_POWER_CONTROL(state) \
     (GPIO_PinWrite(BOARD_SD_POWER_RESET_GPIO, BOARD_SD_POWER_RESET_GPIO_PIN, state))
 
-#define BOARD_USDHC1_CLK_FREQ (CLOCK_GetSysPfdFreq(kCLOCK_Pfd2) / (CLOCK_GetDiv(kCLOCK_Usdhc1Div) + 1U))
-#define BOARD_USDHC2_CLK_FREQ (CLOCK_GetSysPfdFreq(kCLOCK_Pfd2) / (CLOCK_GetDiv(kCLOCK_Usdhc2Div) + 1U))
+#define BOARD_USDHC1_CLK_FREQ (CLOCK_GetSysPfdFreq(kCLOCK_Pfd0) / (CLOCK_GetDiv(kCLOCK_Usdhc1Div) + 1U))
+#define BOARD_USDHC2_CLK_FREQ (CLOCK_GetSysPfdFreq(kCLOCK_Pfd0) / (CLOCK_GetDiv(kCLOCK_Usdhc2Div) + 1U))
 
 #define BOARD_SD_HOST_BASEADDR BOARD_USDHC1_BASEADDR
 #define BOARD_SD_HOST_CLK_FREQ BOARD_USDHC1_CLK_FREQ
@@ -140,9 +146,9 @@
 #define BOARD_MMC_VCCQ_SUPPLY kMMC_VoltageWindow170to195
 #define BOARD_MMC_VCC_SUPPLY kMMC_VoltageWindows270to360
 /* we are using the BB SD socket to DEMO the MMC example,but the
-* SD socket provide 4bit bus only, so we define this macro to avoid
-* 8bit data bus test
-*/
+ * SD socket provide 4bit bus only, so we define this macro to avoid
+ * 8bit data bus test
+ */
 #define BOARD_MMC_SUPPORT_8BIT_BUS (1U)
 
 #define BOARD_SD_HOST_SUPPORT_SDR104_FREQ (200000000U)
@@ -190,10 +196,10 @@
 #define BOARD_ACCEL_I2C_CLOCK_FREQ (CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8 / (BOARD_ACCEL_I2C_CLOCK_SOURCE_DIVIDER + 1U))
 
 #define BOARD_CODEC_I2C_BASEADDR LPI2C1
+#define BOARD_CODEC_I2C_INSTANCE 1U
 #define BOARD_CODEC_I2C_CLOCK_SOURCE_SELECT (0U)
 #define BOARD_CODEC_I2C_CLOCK_SOURCE_DIVIDER (5U)
-#define BOARD_CODEC_I2C_CLOCK_FREQ \
-    ((CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8) / (BOARD_CODEC_I2C_CLOCK_SOURCE_DIVIDER + 1U))
+#define BOARD_CODEC_I2C_CLOCK_FREQ (10000000U)
 
 /* @Brief Board CAMERA configuration */
 #define BOARD_CAMERA_I2C_BASEADDR LPI2C1
@@ -201,6 +207,19 @@
 #define BOARD_CAMERA_I2C_CLOCK_SOURCE_SELECT (0U) /* Select USB1 PLL (480 MHz) as LPI2C's clock source */
 #define BOARD_CAMERA_I2C_CLOCK_FREQ \
     (CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8 / (BOARD_CAMERA_I2C_CLOCK_SOURCE_DIVIDER + 1U))
+
+#define BOARD_CAMERA_I2C_SCL_GPIO GPIO1
+#define BOARD_CAMERA_I2C_SCL_PIN 16
+#define BOARD_CAMERA_I2C_SDA_GPIO GPIO1
+#define BOARD_CAMERA_I2C_SDA_PIN 17
+#define BOARD_CAMERA_PWDN_GPIO GPIO1
+#define BOARD_CAMERA_PWDN_PIN 4
+
+/* @Brief Board Bluetooth HCI UART configuration */
+#define BOARD_BT_UART_BASEADDR LPUART3
+#define BOARD_BT_UART_CLK_FREQ BOARD_DebugConsoleSrcFreq()
+#define BOARD_BT_UART_IRQ LPUART3_IRQn
+#define BOARD_BT_UART_IRQ_HANDLER LPUART3_IRQHandler
 
 #if defined(__cplusplus)
 extern "C" {
