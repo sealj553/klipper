@@ -65,8 +65,7 @@ void QTMR_IRQ_HANDLER(void){
 static void
 timer_set(uint32_t value)
 {
-    //TODO:
-    //
+    //TODO: this?
     
 
     //TC4->COUNT32.CC[0].reg = value;

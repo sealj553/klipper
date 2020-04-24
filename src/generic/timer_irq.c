@@ -19,10 +19,7 @@ DECL_CONSTANT("CLOCK_FREQ", CONFIG_CLOCK_FREQ);
 uint32_t
 timer_from_us(uint32_t us)
 {
-    //TODO: fix this
-    //return us * (CONFIG_CLOCK_FREQ / 1000000);
-    return USEC_TO_COUNT(us, CONFIG_CLOCK_FREQ);
-    //return USEC_TO_COUNT(us, 150000000U/128U);
+    return USEC_TO_COUNT(us, CONFIG_CLOCK_FREQ) + 1;
 }
 
 // Return true if time1 is before time2.  Always use this function to
