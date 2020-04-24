@@ -40,34 +40,49 @@
 
 #define TIMER_TOP (65535)
 
+static void timer_set(uint32_t value);
+
+
 qtmr_config_t qtmrConfig;
 
 uint32_t overflows = 0;
 
 void QTMR_IRQ_HANDLER(void){
+    //irq_disable();
     ++overflows;
 
     /* Clear interrupt flag.*/
     QTMR_ClearStatusFlags(QTMR_BASEADDR, QTMR_CHANNEL, kQTMR_CompareFlag);
+
+    //uint32_t next = timer_dispatch_many();
+    //timer_set(next);
+    //irq_enable();
 }
 
 //TODO: fix this file
 
 // Set the next irq time
-//static void
-//timer_set(uint32_t value)
-//{
-//    //TC4->COUNT32.CC[0].reg = value;
-//    //TC4->COUNT32.INTFLAG.reg = TC_INTFLAG_MC0;
-//}
+static void
+timer_set(uint32_t value)
+{
+    //TODO:
+    //
+    
+
+    //TC4->COUNT32.CC[0].reg = value;
+    //TC4->COUNT32.INTFLAG.reg = TC_INTFLAG_MC0;
+}
+
+uint32_t time_offset = 0;
 
 // Return the current time (in absolute clock ticks).
 uint32_t
 timer_read_time(void)
 {
     //return TC4->COUNT32.COUNT.reg;
-    //return (overflows * TIMER_TOP) + QTMR_GetCurrentTimerCount(QTMR_BASEADDR, QTMR_CHANNEL);
-    return QTMR_GetCurrentTimerCount(QTMR_BASEADDR, QTMR_CHANNEL);
+    uint32_t base = overflows * TIMER_TOP;
+    uint32_t count = QTMR_GetCurrentTimerCount(QTMR_BASEADDR, QTMR_CHANNEL);
+    return base + count + time_offset;
 }
 
 // Activate timer dispatch as soon as possible
@@ -75,6 +90,7 @@ void
 timer_kick(void)
 {
     //timer_set(timer_read_time() + 50);
+    time_offset += 50;
 }
 
 // IRQ handler
@@ -112,6 +128,8 @@ timer_init(void)
     QTMR_EnableInterrupts(QTMR_BASEADDR, QTMR_CHANNEL, kQTMR_CompareInterruptEnable);
     /* Start the second channel to count on rising edge of the primary source clock */
     QTMR_StartTimer(QTMR_BASEADDR, QTMR_CHANNEL, kQTMR_PriSrcRiseEdge);
+
+    timer_kick();
 
 
     //// Supply power and clock to the timer

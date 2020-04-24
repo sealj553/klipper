@@ -31,7 +31,7 @@ config CLOCK_FREQ
 
 config SERIAL_BAUD
     int
-    default 460800
+    default 1152000
 
 #config FLASH_SIZE
 #    hex
