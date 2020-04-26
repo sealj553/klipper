@@ -17,12 +17,12 @@ src-y += generic/serial_irq.c
 src-y += teensy/serial.c
 
 src-y += teensy/adc.c
+src-y += teensy/gpio.c
 
 #src-y += generic/spi.c
 #src-y += teensy/spi.c
 
 src-y += teensy/main.c
-src-y += teensy/gpio.c
 src-y += teensy/pin_mux.c
 src-y += teensy/board.c
 src-y += teensy/clock_config.c
@@ -42,6 +42,7 @@ src-y += ../lib/teensy/devices/MIMXRT1062/system_MIMXRT1062.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_gpio.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_lpuart.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_clock.c
+src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_pit.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_qtmr.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_common.c
 src-y += ../lib/teensy/devices/MIMXRT1062/utilities/str/fsl_str.c
