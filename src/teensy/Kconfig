@@ -27,7 +27,7 @@ config MCU
 
 config CLOCK_FREQ
     int
-    default 1171875 if MACH_TEENSY
+    default 1000000 if MACH_TEENSY
 
 config SERIAL_BAUD
     int

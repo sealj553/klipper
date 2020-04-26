@@ -43,13 +43,11 @@
 
 qtmr_config_t qtmrConfig;
 
-//TODO: fix this file
-
 // Set the next irq time
 //static void
 //timer_set(uint32_t value)
 //{
-//    //TODO: this?
+//    //TODO
 //    
 //
 //    //TC4->COUNT32.CC[0].reg = value;
