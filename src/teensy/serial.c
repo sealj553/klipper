@@ -56,7 +56,9 @@ void serial_disable_tx_irq(void) {
     LPUART_DisableInterrupts(LPUART, kLPUART_TxDataRegEmptyInterruptEnable);
 }
 
-DECL_CONSTANT_STR("RESERVE_PINS_serial", "P0.3,P0.2");
+//TODO: add proper dynamic serial pin config
+/////#ifdef LPUART2
+DECL_CONSTANT_STR("RESERVE_PINS_serial", "P1.18,P1.19");
 
 void serial_init(void) {
     /* Default config:
