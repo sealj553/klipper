@@ -19,99 +19,78 @@
 #include "pin_mux.h"
 #include "clock_config.h"
 #include "sched.h"
+#include "fsl_gpt.h"
 //
-#include "fsl_qtmr.h"
 
-#define QTMR_BASEADDR TMR3
-#define FIRST_QTMR_CHANNEL kQTMR_Channel_0
-#define SECOND_QTMR_CHANNEL kQTMR_Channel_1
-#define QTMR_ClockCounterOutput kQTMR_ClockCounter0Output
+#define GPT_IRQ_ID GPT2_IRQn
+#define GPT GPT2
+#define GPT_IRQHandler GPT2_IRQHandler
 
-/* Interrupt number and interrupt handler for the QTMR instance used */
-#define QTMR_IRQ_ID TMR3_IRQn
-#define QTMR_IRQ_HANDLER TMR3_IRQHandler
-
-/* Get source clock for QTMR driver */
-#define QTMR_SOURCE_CLOCK CLOCK_GetFreq(kCLOCK_IpgClk)
-
-#define QTMR_CLOCK_DIV  (128)
-#define QTMR_CLOCK_FREQ (QTMR_SOURCE_CLOCK / QTMR_CLOCK_DIV)
-
-#define TIMER_TOP (65535)
-
-//static void timer_set(uint32_t value);
-
-qtmr_config_t qtmrConfig;
+/* Get source clock for GPT driver (GPT prescaler = 0) */
+#define GPT_CLK_FREQ CLOCK_GetFreq(kCLOCK_OscClk)
 
 // Set the next irq time
-//static void
-//timer_set(uint32_t value)
-//{
-//    //TODO
-//    
-//
-//    //TC4->COUNT32.CC[0].reg = value;
-//    //TC4->COUNT32.INTFLAG.reg = TC_INTFLAG_MC0;
-//}
+    static void
+timer_set(uint32_t value)
+{
+    /* Set both GPT modules to 1 second duration */
+    GPT_SetOutputCompareValue(GPT, kGPT_OutputCompare_Channel1, value);
+    /* Enable GPT Output Compare1 interrupt */
+    GPT_EnableInterrupts(GPT, kGPT_OutputCompare1InterruptEnable);
+}
 
 // Return the current time (in absolute clock ticks).
-uint32_t
+    uint32_t
 timer_read_time(void)
 {
-    return QTMR_GetCurrentTimerCount(QTMR_BASEADDR, SECOND_QTMR_CHANNEL) << 16
-        | QTMR_GetCurrentTimerCount(QTMR_BASEADDR, FIRST_QTMR_CHANNEL);
+    return GPT_GetCurrentTimerCount(GPT);
 }
 
 // Activate timer dispatch as soon as possible
-void
+    void
 timer_kick(void)
 {
-    //timer_set(timer_read_time() + 50);
+    timer_set(timer_read_time() + 50);
 }
 
-// IRQ handler
-//void __aligned(16) // aligning helps stabilize perf benchmarks
-//TC4_Handler(void)
-//{
-//    //irq_disable();
-//    //uint32_t next = timer_dispatch_many();
-//    //timer_set(next);
-//    //irq_enable();
-//}
+void GPT_IRQHandler(void) {
+    GPT_ClearStatusFlags(GPT, kGPT_OutputCompare1Flag);
 
-void
+    //GPT_DisableInterrupts(GPT, kGPT_OutputCompare1InterruptEnable);
+    irq_disable();
+    uint32_t next = timer_dispatch_many();
+    timer_set(next);
+    irq_enable();
+}
+
+    void
 timer_init(void)
 {
-    /*
-     * qtmrConfig.debugMode = kQTMR_RunNormalInDebug;
-     * qtmrConfig.enableExternalForce = false;
-     * qtmrConfig.enableMasterMode = false;
-     * qtmrConfig.faultFilterCount = 0;
-     * qtmrConfig.faultFilterPeriod = 0;
-     * qtmrConfig.primarySource = kQTMR_ClockDivide_2;
-     * qtmrConfig.secondarySource = kQTMR_Counter0InputPin;
+    /*!
+     * The default values are:
+     *    config->clockSource = kGPT_ClockSource_Periph;
+     *    config->divider = 1U;
+     *    config->enableRunInStop = true;
+     *    config->enableRunInWait = true;
+     *    config->enableRunInDoze = false;
+     *    config->enableRunInDbg = false;
+     *    config->enableFreeRun = true;
+     *    config->enableMode  = true;
      */
-    QTMR_GetDefaultConfig(&qtmrConfig);
+    gpt_config_t gptConfig;
+    GPT_GetDefaultConfig(&gptConfig);
+    /* 24MHz crystal */
+    gptConfig.clockSource = kGPT_ClockSource_Osc;
+    gptConfig.enableFreeRun = true;
+    /* 1MHz output -> 1 tick per uS */
+    gptConfig.divider = GPT_CLK_FREQ/1000000U;
 
-    /* Init the first channel to use the IP Bus clock div by 128 */
-    qtmrConfig.primarySource = kQTMR_ClockDivide_128;
-    QTMR_Init(QTMR_BASEADDR, FIRST_QTMR_CHANNEL, &qtmrConfig);
+    GPT_Init(GPT, &gptConfig);
 
-    /* Init the second channel to use output of the first channel as we are chaining the first channel and the second channel */
-    qtmrConfig.primarySource = QTMR_ClockCounterOutput;
-    QTMR_Init(QTMR_BASEADDR, SECOND_QTMR_CHANNEL, &qtmrConfig);
+    EnableIRQ(GPT_IRQ_ID);
 
-    QTMR_SetTimerPeriod(QTMR_BASEADDR, FIRST_QTMR_CHANNEL, TIMER_TOP);
-    QTMR_SetTimerPeriod(QTMR_BASEADDR, SECOND_QTMR_CHANNEL, TIMER_TOP);
+    GPT_StartTimer(GPT);
 
-    /* Start the second channel in cascase mode, chained to the first channel as set earlier via the primary source
-     * selection */
-    QTMR_StartTimer(QTMR_BASEADDR, SECOND_QTMR_CHANNEL, kQTMR_CascadeCount);
-
-    /* Start the first channel to count on rising edge of the primary source clock */
-    QTMR_StartTimer(QTMR_BASEADDR, FIRST_QTMR_CHANNEL, kQTMR_PriSrcRiseEdge);
-
-    //timer_kick();
-
+    timer_kick();
 }
 DECL_INIT(timer_init);
