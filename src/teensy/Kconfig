@@ -65,5 +65,8 @@ config SERIAL
     #depends on !USBSERIAL
     bool
     default y
+config ANALOG_IN
+    bool
+    default n
 
 endif

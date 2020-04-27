@@ -46,6 +46,7 @@ src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_pit.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_gpt.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_qtmr.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_common.c
+src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_wdog.c
 src-y += ../lib/teensy/devices/MIMXRT1062/utilities/str/fsl_str.c
 src-y += ../lib/teensy/devices/MIMXRT1062/utilities/fsl_assert.c
 src-y += ../lib/teensy/devices/MIMXRT1062/utilities/fsl_sbrk.c

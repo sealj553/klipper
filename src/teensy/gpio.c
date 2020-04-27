@@ -1,9 +1,3 @@
-//// GPIO functions on lpc176x
-////
-//// Copyright (C) 2018  Kevin O'Connor <kevin@koconnor.net>
-////
-//// This file may be distributed under the terms of the GNU GPLv3 license.
-//
 #include <string.h> // ffs
 #include "board/irq.h" // irq_save
 #include "command.h" // shutdown
@@ -140,4 +134,5 @@ gpio_in_read(struct gpio_in g)
 {
 //    LPC_GPIO_TypeDef *regs = g.regs;
 //    return !!(regs->FIOPIN & g.bit);
+    return 0;
 }

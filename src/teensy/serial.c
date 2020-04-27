@@ -1,9 +1,3 @@
-// lpc176x serial port
-//
-// Copyright (C) 2018  Kevin O'Connor <kevin@koconnor.net>
-//
-// This file may be distributed under the terms of the GNU GPLv3 license.
-
 #include "board/armcm_boot.h" // armcm_enable_irq
 #include "autoconf.h" // CONFIG_SERIAL_BAUD
 #include "board/irq.h" // irq_save
@@ -29,10 +23,11 @@
 
 #define LPUART LPUART2
 #define LPUART_CLK_FREQ BOARD_DebugConsoleSrcFreq()
-#define UART_BUFFER_LENGTH 1
 
 #define LPUART_IRQn LPUART2_IRQn
 #define LPUART_IRQHandler LPUART2_IRQHandler
+
+#define UART_BUFFER_LENGTH 1
 
 void serial_disable_tx_irq(void);
 void serial_enable_tx_irq(void);

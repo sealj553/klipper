@@ -1,8 +1,7 @@
 #include "board.h"
 #include "fsl_debug_console.h"
 #include "fsl_gpio.h"
-#include "fsl_lpuart.h"
-#include "fsl_gpt.h"
+#include "fsl_wdog.h"
 
 #undef ARRAY_SIZE
 
@@ -11,24 +10,22 @@
 #include "sched.h"
 #include "command.h" // DECL_CONSTANT
 #include "autoconf.h"
+#include "generic/irq.h"
 
 
-//#
+void
+command_reset(uint32_t *args)
+{
+    irq_disable();
 
-//#define GPT_IRQ_ID GPT2_IRQn
-//#define GPT GPT2
-//#define GPT_IRQHandler GPT2_IRQHandler
-//
-///* Get source clock for GPT driver (GPT prescaler = 0) */
-//#define GPT_CLK_FREQ CLOCK_GetFreq(kCLOCK_OscClk)
-//
-//void GPT_IRQHandler(void) {
-//    GPT_DisableInterrupts(GPT, kGPT_OutputCompare1InterruptEnable);
-//    GPT_ClearStatusFlags(GPT, kGPT_OutputCompare1Flag);
-//}
+    /* Let the watchdog reset the MCU */
+    wdog_config_t config;
+    WDOG_GetDefaultConfig(&config);
+    config.timeoutValue = 1;
+    WDOG_Init(WDOG1, &config);
+}
+DECL_COMMAND_FLAGS(command_reset, HF_IN_SHUTDOWN, "reset");
 
-
-//#
 
 //#define LED_GPIO (GPIO2)
 //#define LED_GPIO_PIN (3)
@@ -55,86 +52,6 @@ void main(void){
     ///////    //SDK_DelayAtLeastUs(400000, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
     ///////    //GPIO_PortToggle(LED_GPIO, 1 << LED_GPIO_PIN);
     ///////}
-
-    ///////timer_init();
-
-    /////gpt_config_t gptConfig;
-
-    //////* Board pin, clock, debug console init */
-    /////BOARD_ConfigMPU();
-    /////BOARD_InitPins();
-    /////BOARD_BootClockRUN();
-    /////BOARD_InitDebugConsole();
-
-
-    /////char buf[32];
-
-    /////uint32_t val = GPT_CLK_FREQ;
-
-    /////itoa(val, buf, 10);
-    /////PRINTF("\r\n");
-    /////PRINTF(buf);
-
-    //////*!
-    ///// * The default values are:
-    ///// *    config->clockSource = kGPT_ClockSource_Periph;
-    ///// *    config->divider = 1U;
-    ///// *    config->enableRunInStop = true;
-    ///// *    config->enableRunInWait = true;
-    ///// *    config->enableRunInDoze = false;
-    ///// *    config->enableRunInDbg = false;
-    ///// *    config->enableFreeRun = true;
-    ///// *    config->enableMode  = true;
-    ///// */
-    /////GPT_GetDefaultConfig(&gptConfig);
-    /////gptConfig.clockSource = kGPT_ClockSource_Osc;
-    /////gptConfig.enableFreeRun = true;
-    //////* 1MHz output -> 1 tick per uS */
-    /////gptConfig.divider = GPT_CLK_FREQ/1000000U;
-
-    /////GPT_Init(GPT, &gptConfig);
-
-
-    /////////* Set both GPT modules to 1 second duration */
-    ////////GPT_SetOutputCompareValue(GPT, kGPT_OutputCompare_Channel1, 1000000U * 5);
-
-    /////////* Enable GPT Output Compare1 interrupt */
-    ////////GPT_EnableInterrupts(GPT, kGPT_OutputCompare1InterruptEnable);
-
-    //////* Enable at the Interrupt */
-    /////EnableIRQ(GPT_IRQ_ID);
-
-    //////* Start Timer */
-    /////PRINTF("\r\nStarting GPT timer ...");
-    /////GPT_StartTimer(GPT);
-
-    /////while (true) {
-    /////    ///* Check whether occur interupt and toggle LED */
-    /////    //if (true == gptIsrFlag)
-    /////    //{
-    /////    //    PRINTF("\r\n GPT interrupt is occurred !");
-    /////    //    gptIsrFlag = false;
-
-    /////    //    //val = GPT_GetCurrentTimerCount(GPT);
-
-    /////    //    //itoa(val, buf, 10);
-    /////    //    //PRINTF("\r\n");
-    /////    //    //PRINTF(buf);
-
-    /////    //}
-    /////    //else
-    /////    //{
-    /////    //    __WFI();
-    /////    //}
-
-    /////    val = GPT_GetCurrentTimerCount(GPT);
-
-    /////    itoa(val, buf, 10);
-    /////    PRINTF("\r\n");
-    /////    PRINTF(buf);
-
-    /////    SDK_DelayAtLeastUs(1000000, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
-    /////}
 }
 
 
@@ -167,18 +84,4 @@ void main(void){
    21     |  1.27
    22     |  1.24
    23     |  1.25
-
-
-
-
-
-   23     | 1.25
-
-
-
-
-
-
-
-
-*/
+   */

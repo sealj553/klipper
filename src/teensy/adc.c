@@ -1,9 +1,3 @@
-// Analog to digital support on lpc176x
-//
-// Copyright (C) 2018-2019  Kevin O'Connor <kevin@koconnor.net>
-//
-// This file may be distributed under the terms of the GNU GPLv3 license.
-
 #include "autoconf.h" // CONFIG_CLOCK_FREQ
 //#include "board/armcm_boot.h" // armcm_enable_irq
 //#include "board/irq.h" // irq_save
