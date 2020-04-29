@@ -72,11 +72,12 @@ uint8_t adc_to_gpio(uint8_t pin){
         case GPIO(1, 25):
             return GPIO(1, 14);
             break;
+        default: return 0;
     }
 }
 
 
-//// Convert a register and bit location back to an integer pin identifier
+// Convert a register and bit location back to an integer pin identifier
 static int
 regs_to_pin(GPIO_Type *regs, uint32_t bit)
 {
@@ -108,13 +109,19 @@ fail:
 void
 gpio_out_reset(struct gpio_out g, uint8_t val)
 {
-//    GPIO_Type *regs = g.regs;
-//    int pin = regs_to_pin(regs, g.bit);
-//    irqstatus_t flag = irq_save();
-//    regs->FIOPIN = (regs->FIOSET & ~g.bit) | (val ? g.bit : 0);
-//    regs->FIODIR |= g.bit;
-//    gpio_peripheral(pin, 0, 0);
-//    irq_restore(flag);
+    gpio_pin_config_t pin_config = { kGPIO_DigitalOutput, val, kGPIO_NoIntmode };
+
+    //GPIO_Type *regs = g.regs;
+    //int pin = regs_to_pin(regs, g.bit);
+    irqstatus_t flag = irq_save();
+    //regs->FIOPIN = (regs->FIOSET & ~g.bit) | (val ? g.bit : 0);
+    //regs->FIODIR |= g.bit;
+    //gpio_peripheral(pin, 0, 0);
+
+    GPIO_PinInit(g.regs, g.bit, &pin_config);
+    //GPIO_PinWrite(EXAMPLE_LED_GPIO, EXAMPLE_LED_GPIO_PIN, 0U);
+
+    irq_restore(flag);
 }
 
 void
@@ -122,14 +129,15 @@ gpio_out_toggle_noirq(struct gpio_out g)
 {
 //    GPIO_Type *regs = g.regs;
 //    regs->FIOPIN = regs->FIOSET ^ g.bit;
+    GPIO_PortToggle(g.regs, 1u << g.bit);
 }
 
 void
 gpio_out_toggle(struct gpio_out g)
 {
-//    irqstatus_t flag = irq_save();
-//    gpio_out_toggle_noirq(g);
-//    irq_restore(flag);
+    irqstatus_t flag = irq_save();
+    gpio_out_toggle_noirq(g);
+    irq_restore(flag);
 }
 
 void
@@ -140,6 +148,7 @@ gpio_out_write(struct gpio_out g, uint8_t val)
 //        regs->FIOSET = g.bit;
 //    else
 //        regs->FIOCLR = g.bit;
+    GPIO_PinWrite(g.regs, g.bit, val);
 }
 
 
@@ -165,6 +174,13 @@ gpio_in_reset(struct gpio_in g, int8_t pull_up)
 //    gpio_peripheral(pin, 0, pull_up);
 //    regs->FIODIR &= ~g.bit;
 //    irq_restore(flag);
+
+    gpio_pin_config_t pin_config = { kGPIO_DigitalInput, pull_up, kGPIO_NoIntmode };
+    irqstatus_t flag = irq_save();
+    GPIO_PinInit(g.regs, g.bit, &pin_config);
+    //GPIO_PinRead(EXAMPLE_LED_GPIO, EXAMPLE_LED_GPIO_PIN);
+
+    irq_restore(flag);
 }
 
 uint8_t
@@ -172,5 +188,5 @@ gpio_in_read(struct gpio_in g)
 {
 //    GPIO_Type *regs = g.regs;
 //    return !!(regs->FIOPIN & g.bit);
-    return 0;
+    return (uint8_t)GPIO_PinRead(g.regs, g.bit);
 }
