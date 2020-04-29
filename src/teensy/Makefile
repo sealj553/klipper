@@ -26,20 +26,20 @@ src-y += teensy/main.c
 src-y += teensy/pin_mux.c
 src-y += teensy/board.c
 src-y += teensy/clock_config.c
-src-y += teensy/irq.c
+#src-y += teensy/irq.c
 src-y += teensy/timer.c
 
 src-y += command.c
 src-y += generic/alloc.c
 src-y += generic/crc16_ccitt.c
 src-y += generic/timer_irq.c
-
-##src-y += generic/armcm_timer.c
+src-y += generic/armcm_irq.c
 
 #src-y += generic/armcm_boot.c generic/armcm_irq.c generic/armcm_timer.c generic/armcm_reset.c
 
 src-y += ../lib/teensy/devices/MIMXRT1062/system_MIMXRT1062.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_gpio.c
+src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_adc.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_lpuart.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_clock.c
 src-y += ../lib/teensy/devices/MIMXRT1062/drivers/fsl_pit.c

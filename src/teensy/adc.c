@@ -7,17 +7,19 @@
 #include "internal.h" // gpio_peripheral
 #include "sched.h" // sched_shutdown
 
+#include "fsl_adc.h"
+
 static const uint8_t adc_pins[] = {
-    GPIO(1, 7),
-    GPIO(1, 8),
-    GPIO(1, 12),
-    GPIO(1, 11),
-    GPIO(1, 6),
-    GPIO(1, 5),
-    GPIO(1, 15),
-    GPIO(2, 0),
-    GPIO(1, 13),
-    GPIO(1, 14),
+    GPIO(1, 18),
+    GPIO(1, 19),
+    GPIO(1, 23),
+    GPIO(1, 22),
+    GPIO(1, 17),
+    GPIO(1, 16),
+    GPIO(1, 26),
+    GPIO(2, 27),
+    GPIO(1, 24),
+    GPIO(1, 25),
 };
 
 ////static const uint8_t adc_pin_funcs[] = {
@@ -27,34 +29,7 @@ static const uint8_t adc_pins[] = {
 //#define ADC_FREQ_MAX 13000000
 DECL_CONSTANT("ADC_MAX", 4095);
 
-// The lpc176x adc is extremely noisy. Implement a 5 entry median
-// filter to weed out obviously incorrect readings.
-//static struct {
-//    uint32_t adcr;
-//    uint16_t pos;
-//    uint16_t chan;
-//    uint16_t samples[5];
-//} adc_status;
-
-enum { ADC_DONE=0x0100 };
-
-// ADC hardware irq handler
-void
-ADC_IRQHandler(void)
-{
-    //uint32_t pos = adc_status.pos, chan = adc_status.chan & 0xff;
-    //uint32_t result = (&LPC_ADC->ADDR0)[chan];
-    //if (pos >= ARRAY_SIZE(adc_status.samples))
-    //    // All samples complete
-    //    return;
-    //if (pos >= ARRAY_SIZE(adc_status.samples) - 2)
-    //    // Turn off burst mode
-    //    LPC_ADC->ADCR = adc_status.adcr | (1 << chan);
-    //adc_status.samples[pos++] = (result >> 4) & 0x0fff;
-    //adc_status.pos = pos;
-}
-
-struct gpio_adc
+    struct gpio_adc
 gpio_adc_setup(uint8_t pin)
 {
     //// Find pin in adc_pins table
@@ -85,7 +60,7 @@ gpio_adc_setup(uint8_t pin)
 // Try to sample a value. Returns zero if sample ready, otherwise
 // returns the number of clock ticks the caller should wait before
 // retrying this function.
-uint32_t
+    uint32_t
 gpio_adc_sample(struct gpio_adc g)
 {
     //uint32_t chan = adc_status.chan;
@@ -105,18 +80,18 @@ gpio_adc_sample(struct gpio_adc g)
     //adc_status.chan = g.chan;
     //LPC_ADC->ADCR = adc_status.adcr | (1 << g.chan) | (1<<16);
 
-//need_delay:
+    //need_delay:
     //return ((64 * DIV_ROUND_UP(CONFIG_CLOCK_FREQ, ADC_FREQ_MAX)
-             //* ARRAY_SIZE(adc_status.samples)) / 4 + timer_from_us(10));
+    //* ARRAY_SIZE(adc_status.samples)) / 4 + timer_from_us(10));
     return 0;
 }
 
 #define ORDER(r1, r2) do {                                      \
-        if (r1 > r2) { uint32_t t = r1; r1 = r2; r2 = t; }      \
-    } while (0)
+    if (r1 > r2) { uint32_t t = r1; r1 = r2; r2 = t; }      \
+} while (0)
 
 // Read a value; use only after gpio_adc_sample() returns zero
-uint16_t
+    uint16_t
 gpio_adc_read(struct gpio_adc g)
 {
     //adc_status.chan |= ADC_DONE;
@@ -146,16 +121,16 @@ gpio_adc_read(struct gpio_adc g)
 }
 
 // Cancel a sample that may have been started with gpio_adc_sample()
-void
+    void
 gpio_adc_cancel_sample(struct gpio_adc g)
 {
-//    uint32_t chan = adc_status.chan;
-//    if (chan != g.chan)
-//        return;
-//    irqstatus_t flag = irq_save();
-//    LPC_ADC->ADCR = adc_status.adcr;
-//    adc_status.chan = chan | ADC_DONE;
-//    adc_status.pos = ARRAY_SIZE(adc_status.samples);
-//    (&LPC_ADC->ADDR0)[chan & 0xff];
-//    irq_restore(flag);
+    //    uint32_t chan = adc_status.chan;
+    //    if (chan != g.chan)
+    //        return;
+    //    irqstatus_t flag = irq_save();
+    //    LPC_ADC->ADCR = adc_status.adcr;
+    //    adc_status.chan = chan | ADC_DONE;
+    //    adc_status.pos = ARRAY_SIZE(adc_status.samples);
+    //    (&LPC_ADC->ADDR0)[chan & 0xff];
+    //    irq_restore(flag);
 }
