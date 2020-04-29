@@ -7,16 +7,24 @@
 #include "internal.h" // gpio_peripheral
 #include "sched.h" // sched_shutdown
 
-////static const uint8_t adc_pins[] = {
-////    GPIO(0, 23), GPIO(0, 24), GPIO(0, 25), GPIO(0, 26),
-////    GPIO(1, 30), GPIO(1, 31), GPIO(0, 3), GPIO(0, 2),
-////};
-////
+static const uint8_t adc_pins[] = {
+    GPIO(1, 7),
+    GPIO(1, 8),
+    GPIO(1, 12),
+    GPIO(1, 11),
+    GPIO(1, 6),
+    GPIO(1, 5),
+    GPIO(1, 15),
+    GPIO(2, 0),
+    GPIO(1, 13),
+    GPIO(1, 14),
+};
+
 ////static const uint8_t adc_pin_funcs[] = {
 ////    1, 1, 1, 1, 3, 3, 2, 2
 ////};
 
-#define ADC_FREQ_MAX 13000000
+//#define ADC_FREQ_MAX 13000000
 DECL_CONSTANT("ADC_MAX", 4095);
 
 // The lpc176x adc is extremely noisy. Implement a 5 entry median
