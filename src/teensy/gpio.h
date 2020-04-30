@@ -2,8 +2,6 @@
 
 #include <stdint.h>
 
-uint8_t adc_to_gpio(uint8_t pin);
-
 struct gpio_out {
     void *regs;
     uint32_t bit;

@@ -40,53 +40,16 @@ static GPIO_Type* const digital_regs[] = {
 //    irq_restore(flag);
 //}
 
-uint8_t adc_to_gpio(uint8_t pin){
-    switch(pin){
-        case GPIO(1, 18):
-            return GPIO(1, 7);
-            break;
-        case GPIO(1, 19):
-            return GPIO(1, 8);
-            break;
-        case GPIO(1, 23):
-            return GPIO(1, 12);
-            break;
-        case GPIO(1, 22):
-            return GPIO(1, 11);
-            break;
-        case GPIO(1, 17):
-            return GPIO(1, 6);
-            break;
-        case GPIO(1, 16):
-            return GPIO(1, 5);
-            break;
-        case GPIO(1, 26):
-            return GPIO(1, 15);
-            break;
-        case GPIO(2, 27):
-            return GPIO(2, 0);
-            break;
-        case GPIO(1, 24):
-            return GPIO(1, 13);
-            break;
-        case GPIO(1, 25):
-            return GPIO(1, 14);
-            break;
-        default: return 0;
-    }
-}
-
-
 // Convert a register and bit location back to an integer pin identifier
-static int
-regs_to_pin(GPIO_Type *regs, uint32_t bit)
-{
-    int i;
-    for (i=0; i<ARRAY_SIZE(digital_regs); i++)
-        if (digital_regs[i] == regs)
-            return GPIO(i, ffs(bit)-1);
-    return 0;
-}
+//static int
+//regs_to_pin(GPIO_Type *regs, uint32_t bit)
+//{
+//    int i;
+//    for (i=0; i<ARRAY_SIZE(digital_regs); i++)
+//        if (digital_regs[i] == regs)
+//            return GPIO(i, ffs(bit)-1);
+//    return 0;
+//}
 
 
 ///****************************************************************

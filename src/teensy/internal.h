@@ -8,6 +8,13 @@
 #define GPIO2PORT(PIN) ((PIN) / 32)
 #define GPIO2BIT(PIN) (1<<((PIN) % 32))
 
+#define ADC_BASE (ADC1)
+#define ADC_CHANNEL_GROUP (0)
+
+// ?
+#define ADC_DELAY_TICKS 100 
+
+
 //#define PCLK_TIMER0 1
 //#define PCLK_UART0 3
 //#define PCLK_SSP1 10

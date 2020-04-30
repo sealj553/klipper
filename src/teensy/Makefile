@@ -23,6 +23,7 @@ src-y += teensy/gpio.c
 #src-y += teensy/spi.c
 
 src-y += teensy/main.c
+src-y += teensy/init.c
 src-y += teensy/pin_mux.c
 src-y += teensy/board.c
 src-y += teensy/clock_config.c
