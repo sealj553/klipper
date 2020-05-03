@@ -110,8 +110,6 @@ gpio_adc_sample(struct gpio_adc g)
     /* start a conversion */
     ADC_SetChannelConfig(ADC_BASE, ADC_CHANNEL_GROUP, &adcChannelConfigStruct);
 
-    //while (ADC_GetnelStatusFlags(DEMO_ADC_BASE, DEMO_ADC_CHANNEL_GROUP) == 0) { }
-
 
 
     //uint32_t  = adc_status.chan;

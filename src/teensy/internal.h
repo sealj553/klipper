@@ -6,7 +6,7 @@
 
 #define GPIO(PORT, NUM) ((PORT) * 32 + (NUM))
 #define GPIO2PORT(PIN) ((PIN) / 32)
-#define GPIO2BIT(PIN) (1<<((PIN) % 32))
+#define GPIO2BIT(PIN) ((PIN) % 32)
 
 #define ADC_BASE (ADC1)
 #define ADC_CHANNEL_GROUP (0)

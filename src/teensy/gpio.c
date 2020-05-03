@@ -59,11 +59,11 @@ static GPIO_Type* const digital_regs[] = {
 struct gpio_out
 gpio_out_setup(uint8_t pin, uint8_t val)
 {
-    if (GPIO2PORT(pin) >= ARRAY_SIZE(digital_regs))
-        goto fail;
-    GPIO_Type *regs = digital_regs[GPIO2PORT(pin)];
-    struct gpio_out g = { .regs=regs, .bit=GPIO2BIT(pin) };
+    if (GPIO2PORT(pin) >= ARRAY_SIZE(digital_regs)) goto fail;
+
+    struct gpio_out g = { .regs=digital_regs[GPIO2PORT(pin)], .bit=GPIO2BIT(pin) };
     gpio_out_reset(g, val);
+
     return g;
 fail:
     shutdown("Not an output pin");

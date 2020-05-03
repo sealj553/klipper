@@ -8,6 +8,6 @@ void SystemInit(void) {
     BOARD_ConfigMPU();
     BOARD_InitPins();
     BOARD_BootClockRUN();
-    //BOARD_InitDebugConsole();
+    BOARD_InitDebugConsole();
 
 }
